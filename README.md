@@ -21,9 +21,16 @@ Two modded Minecraft servers that share one set of launch, backup and DNS script
 
 A Docker test of Emily lives in `docker/emily-test/` and runs on a copy of the world
 in `Emily-Docker-Test/` (port 25567, this PC only). See the comments at the top of
-its `compose.yaml` for the commands. Stop it with `./docker.sh emily-test stop` to get
-a full backup (Distant Horizons included) once it has shut down cleanly; live backups
-every 24h leave Distant Horizons out, and a crash never triggers a backup.
+its `compose.yaml` for the commands. Docker servers are backed up into three folders,
+each keeping its newest 10:
+
+- `auto/`: live, every 24h of uptime (without Distant Horizons)
+- `manual/`: live, from `./docker.sh emily-test backup`
+- `shutdown/`: full, from `./docker.sh emily-test stop` or `restart`, made while the
+  server is off (players get a 10-second warning first)
+
+Players see backup start/finish/failure messages in chat. A crash never triggers a
+backup.
 
 Type `stop` in the server console to shut down cleanly. Ctrl+C also works: the
 script waits for the server to save before it backs up.
@@ -35,9 +42,10 @@ updater setup.
 
 ```
 Minecraft-Servers/
-├── docker.sh             stop a Docker server and back it up (./docker.sh <name> stop)
+├── docker.sh             back up, stop or restart a Docker server (./docker.sh <name> backup|stop|restart)
 ├── scripts/              shared scripts (run, server, backup, sync-mods, DNS updater)
 ├── docker/emily-test/    Docker test setup for Emily (compose.yaml)
+├── docker/backup-hooks/  chat announcements and pruning for Docker backups
 ├── Emily-Server/
 │   ├── server.conf       Java path, JAR, RAM, extra JVM flags, backup settings
 │   ├── server.properties
