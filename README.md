@@ -7,36 +7,61 @@ Two modded Minecraft servers that share one set of launch, backup and DNS script
 | Emily | `Emily-Server/` | Fabric 26.3 | 25 | 25566 | `TFSMinecraft.chickenkiller.com:25566` |
 | HBM Space | `HBM-Space-Server-3/` | Forge 1.7.10 | 8 | 25565 | `TFSMinecraft.chickenkiller.com` |
 
-## Quick start
+## Servers started with run.sh (Emily, HBM)
+
+The server runs in your terminal, so that window is both the log and the console.
+
+| To | Do this |
+|---|---|
+| Start | `./scripts/run.sh emily` (or `hbm`) |
+| See the logs | Watch that terminal, or `tail -f Emily-Server/logs/latest.log` from elsewhere |
+| Run a console command | Type it into that terminal, without a `/` (e.g. `list`, `say hi`) |
+| Shut down | Type `stop`, or press Ctrl+C. It saves, stops, then backs up the world |
+| Back up | Happens on every shutdown you ask for (never after a crash). For a stopped server: `./scripts/backup.sh Emily-Server` |
+
+Other options:
 
 ```sh
-./scripts/run.sh emily            # start Emily; backs up the world when it stops (not after a crash)
-./scripts/run.sh hbm              # start HBM
-./scripts/run.sh emily --check    # check Java and the JAR without starting
-./scripts/run.sh emily --no-backup
-./scripts/backup.sh Emily-Server  # manual world backup
+./scripts/run.sh emily --check       # check Java and the JAR without starting
+./scripts/run.sh emily --no-backup   # don't back up when it stops
 ./scripts/sync-mods.py emily --dry-run   # what a mod/config sync would change
-./scripts/sync-mods.py emily      # sync mods and configs from the client profile
+./scripts/sync-mods.py emily         # sync mods and configs from the client profile
 ```
 
+See [scripts/README.md](scripts/README.md) for script details and the DNS
+updater setup.
+
+## Docker servers (emily-test)
+
 A Docker test of Emily lives in `docker/emily-test/` and runs on a copy of the world
-in `Emily-Docker-Test/` (port 25567, this PC only). See the comments at the top of
-its `compose.yaml` for the commands. Docker servers are backed up into three folders,
-each keeping its newest 10:
+in `Emily-Docker-Test/` (port 25567, this PC only). Run `docker compose` commands
+from that folder (`cd docker/emily-test`); run `./docker.sh` from the repo root
+(from `docker/emily-test` it is `../../docker.sh`).
+
+| To | Do this |
+|---|---|
+| Start | `docker compose up -d` |
+| See the logs | `docker compose logs -f mc` (Ctrl+C stops watching, not the server); backup messages: `docker compose logs -f backups` |
+| Run a console command | `docker compose exec mc rcon-cli` opens a console (Ctrl+D to leave); one command: `docker compose exec mc rcon-cli say hi` |
+| Shut down | `./docker.sh emily-test stop`: warns players, stops, then makes a full backup |
+| Restart | `./docker.sh emily-test restart`: the same as stop, then starts it again |
+| Back up while running | `./docker.sh emily-test backup` (players stay on) |
+| Shut down without a backup | `docker compose down` |
+
+After a crash the server restarts itself, up to 3 times. Stopping it yourself (any of
+the ways above, or `stop` in the console) never triggers a restart. To start it
+without auto-restart: `AUTO_RESTART=no docker compose up -d`.
+
+Backups go into `Emily-Docker-Test/backups-docker/`, three folders that each keep
+their newest 10:
 
 - `auto/`: live, every 24h of uptime (without Distant Horizons)
 - `manual/`: live, from `./docker.sh emily-test backup`
 - `shutdown/`: full, from `./docker.sh emily-test stop` or `restart`, made while the
-  server is off (players get a 10-second warning first)
+  server is off (players get a 10-second warning first, unless nobody is on)
 
 Players see backup start/finish/failure messages in chat. A crash never triggers a
-backup.
-
-Type `stop` in the server console to shut down cleanly. Ctrl+C also works: the
-script waits for the server to save before it backs up.
-
-See [scripts/README.md](scripts/README.md) for script details and the DNS
-updater setup.
+backup. More detail is in the comments at the top of `docker/emily-test/compose.yaml`.
 
 ## Layout
 

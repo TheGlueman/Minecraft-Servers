@@ -1,8 +1,9 @@
 # Docker test of the Emily server, running on a COPY of its world.
 #
 #   cd docker/emily-test
-#   docker compose up -d                                # start; stays down after a crash
-#   AUTO_RESTART=on-failure:3 docker compose up -d      # start; up to 3 restarts after crashes
+#   docker compose up -d                                # start; restarts up to 3 times after crashes
+#   AUTO_RESTART=no docker compose up -d                # start; stays down after a crash
+#     (stopping it yourself, or "stop" in the console, never triggers a restart)
 #   docker compose logs -f mc                           # follow the server log
 #   docker compose exec mc rcon-cli                     # server console (type commands)
 #   ../../docker.sh emily-test backup                   # live backup now -> manual/
@@ -30,7 +31,7 @@ services:
   mc:
     # Pinned to the exact image that was tested; change the digest deliberately to update.
     image: itzg/minecraft-server:java25@sha256:7d4a888284c2f8d468f620f2534de648cb8eacba48df8d4d20b6ad1ef201f3a3
-    restart: ${AUTO_RESTART:-no}
+    restart: ${AUTO_RESTART:-on-failure:3}
     env_file: ${HOME}/.config/minecraft-servers/emily-test-rcon.env
     environment:
       EULA: "TRUE"
@@ -57,7 +58,7 @@ services:
 
   backups:
     image: itzg/mc-backup:latest@sha256:096796a6f001a2bb7dd36a764ef9030cca30b9b1783401082f79e9ae0267e9b9
-    restart: ${AUTO_RESTART:-no}
+    restart: ${AUTO_RESTART:-on-failure:3}
     depends_on:
       - mc
     env_file: ${HOME}/.config/minecraft-servers/emily-test-rcon.env
