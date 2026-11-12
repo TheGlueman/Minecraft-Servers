@@ -2,16 +2,20 @@
 #
 #   cd docker/emily-test
 #   docker compose up -d                                # start; stays down after a crash
-#   AUTO_RESTART=unless-stopped docker compose up -d    # start; restarts after a crash
+#   AUTO_RESTART=on-failure:3 docker compose up -d      # start; up to 3 restarts after crashes
 #   docker compose logs -f mc                           # follow the server log
 #   docker compose exec mc rcon-cli                     # server console (type commands)
-#   docker compose exec backups backup now              # back up now, while running
-#     (not in the first ~3 minutes after "up": the scheduled backup runs then, and two
-#      backups at once re-enable saving mid-copy)
-#   docker compose down                                 # clean stop ("stop" is sent first)
+#   docker compose exec backups backup now              # live backup now (no Distant Horizons)
+#   ../../docker.sh emily-test stop                     # stop, then full backup incl. Distant Horizons
+#   docker compose down                                 # stop WITHOUT a backup
+#
+# Backups happen: when you run "backup now"; every 24h the server has been up (live, without
+# Distant Horizons, whose databases can't be paused); and when you stop with docker.sh (full).
+# A crash never triggers a backup. Two live backups at once re-enable saving mid-copy, so
+# avoid "backup now" at the moment a 24h backup is due.
 #
 # Data:     ../../Emily-Docker-Test/              (a copy; the real Emily-Server is untouched)
-# Backups:  ../../Emily-Docker-Test/backups-docker/   (.tgz, never deleted automatically)
+# Backups:  ../../Emily-Docker-Test/backups-docker/   (.tar.gz, never deleted automatically)
 # Join:     localhost:25567 from this PC only.
 # RCON:     password in ~/.config/minecraft-servers/emily-test-rcon.env (outside git);
 #           also reachable from this PC only, on 127.0.0.1:25576.
@@ -57,10 +61,13 @@ services:
       SERVER_PORT: "25566"
       BACKUP_NAME: emily-test
       BACKUP_INTERVAL: 24h
-      INITIAL_DELAY: 2m
+      # No backup at start: the first live backup comes after 24h of uptime.
+      BACKUP_ON_STARTUP: "false"
+      INITIAL_DELAY: 0s
       # 0 = never delete old backups (the image default is 7 days). Backups are cleared by hand.
       PRUNE_BACKUPS_DAYS: "0"
-      EXCLUDES: "*.jar,cache,logs,*.tmp,backups,backups-docker"
+      # Live backups leave out Distant Horizons: save-off can't pause its databases.
+      EXCLUDES: "*.jar,cache,logs,*.tmp,backups,backups-docker,DistantHorizons.sqlite*"
       TZ: Europe/London
     volumes:
       - ../../Emily-Docker-Test:/data:ro

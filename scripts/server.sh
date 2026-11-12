@@ -87,12 +87,24 @@ cleanup() {
 
     if [[ "$no_backup" == true ]]; then
         printf '\nSkipping backup because --no-backup was specified.\n'
+    elif [[ "$status" -ne 0 && "${stop_requested:-false}" != true ]]; then
+        # Only back up stops you asked for ("stop" exits 0; Ctrl+C/kill set stop_requested).
+        # A crash may have left a broken save, so it gets no backup.
+        printf '\nServer exited with error code %s without being asked to stop (crash?).\n' "$status" >&2
+        printf 'Skipping backup so a possibly broken save is not backed up.\n' >&2
+    elif [[ -n "${start_marker:-}" ]] \
+        && crash_report=$(find "$server_root/crash-reports" -type f -newer "$start_marker" -print -quit 2>/dev/null) \
+        && [[ -n "$crash_report" ]]; then
+        # A server can crash, write a crash report and still exit 0.
+        printf '\nServer wrote a crash report while running: %s\n' "$crash_report" >&2
+        printf 'Skipping backup so a possibly broken save is not backed up.\n' >&2
     else
         printf '\nServer stopped. Running backup...\n'
         "$script_dir/backup.sh" "$server_root" \
             || printf 'Warning: backup failed.\n' >&2
     fi
 
+    [[ -n "${start_marker:-}" ]] && rm -f -- "$start_marker"
     exit "$status"
 }
 trap cleanup EXIT
@@ -111,6 +123,8 @@ forward_stop() {
 trap forward_stop INT TERM HUP
 
 cd -- "$server_root" || exit 1
+# Crash reports newer than this file mean the server crashed during this run.
+start_marker=$(mktemp) || exit 1
 printf 'Starting Minecraft server with %s RAM...\n' "$RAM_ALLOCATION"
 printf 'Server root: %s\nJAR path: %s\n' "$server_root" "$jar_path"
 # Run in the background so traps can fire; <&0 keeps the console usable for commands.

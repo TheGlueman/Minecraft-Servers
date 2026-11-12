@@ -5,6 +5,7 @@
 !/README.md
 !/scripts/
 !/docker/
+!/docker.sh
 
 # Never commit generated files anywhere, even inside allowed folders
 # (some mods, e.g. CustomSpawner, write logs into config/).

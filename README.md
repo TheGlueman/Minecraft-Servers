@@ -10,7 +10,7 @@ Two modded Minecraft servers that share one set of launch, backup and DNS script
 ## Quick start
 
 ```sh
-./scripts/run.sh emily            # start Emily; backs up the world when it stops
+./scripts/run.sh emily            # start Emily; backs up the world when it stops (not after a crash)
 ./scripts/run.sh hbm              # start HBM
 ./scripts/run.sh emily --check    # check Java and the JAR without starting
 ./scripts/run.sh emily --no-backup
@@ -21,7 +21,9 @@ Two modded Minecraft servers that share one set of launch, backup and DNS script
 
 A Docker test of Emily lives in `docker/emily-test/` and runs on a copy of the world
 in `Emily-Docker-Test/` (port 25567, this PC only). See the comments at the top of
-its `compose.yaml` for the commands.
+its `compose.yaml` for the commands. Stop it with `./docker.sh emily-test stop` to get
+a full backup (Distant Horizons included) once it has shut down cleanly; live backups
+every 24h leave Distant Horizons out, and a crash never triggers a backup.
 
 Type `stop` in the server console to shut down cleanly. Ctrl+C also works: the
 script waits for the server to save before it backs up.
@@ -33,6 +35,7 @@ updater setup.
 
 ```
 Minecraft-Servers/
+├── docker.sh             stop a Docker server and back it up (./docker.sh <name> stop)
 ├── scripts/              shared scripts (run, server, backup, sync-mods, DNS updater)
 ├── docker/emily-test/    Docker test setup for Emily (compose.yaml)
 ├── Emily-Server/
