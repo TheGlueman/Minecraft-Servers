@@ -47,5 +47,29 @@ the account with `loginctl enable-linger louis`.
 
 `server.conf` files are trusted Bash configuration. Keep their values as shell
 assignments. Extra JVM flags go in an optional `JAVA_ARGS` array, for example
-`JAVA_ARGS=(-XX:+UseZGC)`. To add a server, add its config and a name-to-directory mapping in
-`scripts/run.sh`.
+`JAVA_ARGS=(-XX:+UseZGC)`.
+
+## Server names
+
+Each `server.conf` starts with `NAME=` (`emily`, `hbm`). The scripts find servers by
+looking for folders next to `scripts/` that contain a `server.conf`, so a new server
+works with `run.sh` and `sync-mods.py` as soon as its folder and config exist. Names
+must be unique.
+
+## Mod sync
+
+`./scripts/sync-mods.py emily` updates a server's mods and configs from its client
+profile (Modrinth, CurseForge or any launcher folder with `mods/` and `config/`):
+
+- `PROFILE_DIR` in `server.conf` is the full path to the profile folder.
+- `SYNC_EXCLUDE=(...)` lists mods never to copy, matched against mod ID and file name.
+  Fabric mods marked client-only are skipped automatically; Forge and NeoForge mods
+  don't say, so their exclude list does the work.
+- `SYNC_CONFIG_SKIP=(...)` lists config files or folders (relative to `config/`,
+  wildcards allowed) never to overwrite.
+
+It prints the whole plan first (downgrades flagged at the top), then asks one yes/no.
+`--dry-run` only prints the plan. It refuses to run while that server is running,
+backs up the current `mods/` and `config/` to `backups/mods-config_<date>/` before
+changing anything, never deletes anything that exists only on the server, and
+rewrites `mods.txt`.

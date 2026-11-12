@@ -1,0 +1,67 @@
+# Docker test of the Emily server, running on a COPY of its world.
+#
+#   cd docker/emily-test
+#   docker compose up -d                                # start; stays down after a crash
+#   AUTO_RESTART=unless-stopped docker compose up -d    # start; restarts after a crash
+#   docker compose logs -f mc                           # follow the server log
+#   docker compose exec mc rcon-cli                     # server console (type commands)
+#   docker compose exec backups backup now              # back up now, while running
+#     (not in the first ~3 minutes after "up": the scheduled backup runs then, and two
+#      backups at once re-enable saving mid-copy)
+#   docker compose down                                 # clean stop ("stop" is sent first)
+#
+# Data:     ../../Emily-Docker-Test/              (a copy; the real Emily-Server is untouched)
+# Backups:  ../../Emily-Docker-Test/backups-docker/   (.tgz, never deleted automatically)
+# Join:     localhost:25567 from this PC only.
+# RCON:     password in ~/.config/minecraft-servers/emily-test-rcon.env (outside git);
+#           also reachable from this PC only, on 127.0.0.1:25576.
+
+name: emily-test
+
+services:
+  mc:
+    # Pinned to the exact image that was tested; change the digest deliberately to update.
+    image: itzg/minecraft-server:java25@sha256:7d4a888284c2f8d468f620f2534de648cb8eacba48df8d4d20b6ad1ef201f3a3
+    restart: ${AUTO_RESTART:-no}
+    env_file: ${HOME}/.config/minecraft-servers/emily-test-rcon.env
+    environment:
+      EULA: "TRUE"
+      # Run the Fabric launcher jar already in the folder; the image installs nothing.
+      TYPE: CUSTOM
+      CUSTOM_SERVER: /data/fabric-server-mc.26.3-loader.0.19.5-launcher.1.1.2.jar
+      VERSION: "26.3"
+      MEMORY: 6G
+      JVM_XX_OPTS: -XX:+UseZGC
+      TZ: Europe/London
+      # Seconds the server gets to save after "stop" before it is killed.
+      STOP_DURATION: "90"
+    stop_grace_period: 120s
+    ports:
+      # server.properties in the copy keeps server-port=25566.
+      - "127.0.0.1:25567:25566"
+      - "127.0.0.1:25576:25575"
+    volumes:
+      - ../../Emily-Docker-Test:/data
+    stdin_open: true
+    tty: true
+
+  backups:
+    image: itzg/mc-backup:latest@sha256:096796a6f001a2bb7dd36a764ef9030cca30b9b1783401082f79e9ae0267e9b9
+    restart: ${AUTO_RESTART:-no}
+    depends_on:
+      - mc
+    env_file: ${HOME}/.config/minecraft-servers/emily-test-rcon.env
+    environment:
+      RCON_HOST: mc
+      SERVER_HOST: mc
+      SERVER_PORT: "25566"
+      BACKUP_NAME: emily-test
+      BACKUP_INTERVAL: 24h
+      INITIAL_DELAY: 2m
+      # 0 = never delete old backups (the image default is 7 days). Backups are cleared by hand.
+      PRUNE_BACKUPS_DAYS: "0"
+      EXCLUDES: "*.jar,cache,logs,*.tmp,backups,backups-docker"
+      TZ: Europe/London
+    volumes:
+      - ../../Emily-Docker-Test:/data:ro
+      - ../../Emily-Docker-Test/backups-docker:/backups

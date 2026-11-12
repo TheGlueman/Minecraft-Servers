@@ -1,4 +1,6 @@
-1.7.10
++unimixins-all-1.7.10-0.3.2.jar
+1.7.10/CodeChickenLib-1.7.10-1.1.3.141-universal.jar
+1.7.10/ForgeMultipart-1.7.10-1.2.0.345-universal.jar
 ae2fc-1.5.110-gtnh.jar
 ae2stuff-0.10.20-GTNH.jar
 AgriCraft-1.7.10-1.5.0.jar
@@ -60,14 +62,13 @@ OpenBlocks-1.12.22-GTNH.jar
 OpenComputers-1.12.63-GTNH.jar
 OpenGlasses-1.6.9-GTNH.jar
 OpenModsLibs-0.10.14.jar
-Pam's HarvestCraft 1.7.10Lb.jar
 Pam's Harvest the Nether 1.7.10a.jar
+Pam's HarvestCraft 1.7.10Lb.jar
 PortalGun-4.0.0-beta-6-fix-1.jar
 PortalGunSounds.pak
 PortalGunSounds.pak.md5
 RecurrentComplex-0.9.7.1.2.jar
 tumbleweed-1.7.10-0.2.jar
-+unimixins-all-1.7.10-0.3.2.jar
 VeinMiner-1.7.10-0.36.0.496+28a7f13.jar
 wdmla-2.8.2.jar
 WirelessCraftingTerminal-1.12.16.jar
