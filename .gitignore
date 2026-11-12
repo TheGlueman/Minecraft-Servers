@@ -6,6 +6,8 @@
 !/scripts/
 !/docker/
 !/docker.sh
+# Each Docker server's own files (world, mods, jar, backups) live in docker/<name>/server/.
+/docker/*/server/
 
 # Never commit generated files anywhere, even inside allowed folders
 # (some mods, e.g. CustomSpawner, write logs into config/).

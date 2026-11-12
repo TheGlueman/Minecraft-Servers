@@ -10,12 +10,13 @@
 # crashes. Docker restarts the server up to 3 times after a crash (docker.sh up --no-restart
 # to turn that off); stopping it yourself never triggers a restart.
 #
-# Backups (../../Emily-Docker-Test/backups-docker/, one folder, named by kind, newest 10 of
+# Backups (server/backups-docker/, one folder, named by kind, newest 10 of
 # each kind kept): -auto (every 24h of uptime, live, without Distant Horizons), -manual
 # (docker.sh backup, live), -shutdown (full, made while the server is off). A crash never
 # triggers a backup. Chat messages: docker/backup-hooks/.
 #
-# Data:     ../../Emily-Docker-Test/   (a copy; the real Emily-Server is untouched)
+# Data:     server/ next to this file (a copy of Emily-Server, not in git; the real
+#           Emily-Server is untouched)
 # Join:     localhost:25567 from this PC only.
 # RCON:     password in ~/.config/minecraft-servers/emily-test-rcon.env (outside git);
 #           also reachable from this PC only, on 127.0.0.1:25576.
@@ -47,7 +48,7 @@ services:
       - "127.0.0.1:25567:25566"
       - "127.0.0.1:25576:25575"
     volumes:
-      - ../../Emily-Docker-Test:/data
+      - ./server:/data
     stdin_open: true
     tty: true
 
@@ -77,6 +78,6 @@ services:
       EXCLUDES: "*.jar,cache,logs,*.tmp,backups,backups-docker,DistantHorizons.sqlite*"
       TZ: Europe/London
     volumes:
-      - ../../Emily-Docker-Test:/data:ro
-      - ../../Emily-Docker-Test/backups-docker:/backups
+      - ./server:/data:ro
+      - ./server/backups-docker:/backups
       - ../backup-hooks:/hooks:ro

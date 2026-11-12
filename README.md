@@ -33,8 +33,9 @@ updater setup.
 
 ## Docker servers (emily-test)
 
-A Docker test of Emily lives in `docker/emily-test/` and runs on a copy of the world
-in `Emily-Docker-Test/` (port 25567, this PC only). Everything goes through
+A Docker test of Emily lives in `docker/emily-test/`: `compose.yaml` says how to run
+it, and `server/` next to it holds its files (a copy of Emily's world, mods and jar,
+plus its backups; not in git). Port 25567, this PC only. Everything goes through
 `docker.sh` in the repo root (from another folder, give its path, e.g. `../../docker.sh`).
 
 | To | Do this |
@@ -56,7 +57,7 @@ warning), `down --no-backup`.
 After a crash Docker restarts the server, up to 3 times. Stopping it yourself never
 triggers a restart.
 
-Backups all go in `Emily-Docker-Test/backups-docker/`, named by kind, keeping the
+Backups all go in `docker/emily-test/server/backups-docker/`, named by kind, keeping the
 newest 10 of each kind:
 
 - `…-auto.tar.gz`: live, every 24h of uptime (without Distant Horizons)
@@ -72,7 +73,8 @@ backup.
 Minecraft-Servers/
 ├── docker.sh             runs the Docker servers: up, down, backup, logs, console... (see its top)
 ├── scripts/              shared scripts (run, server, backup, sync-mods, DNS updater)
-├── docker/emily-test/    Docker test setup for Emily (compose.yaml)
+├── docker/emily-test/    Docker test of Emily: compose.yaml (how to run it) and
+│                         server/ (its world, mods, jar and backups; not in git)
 ├── docker/backup-hooks/  chat announcements and pruning for Docker backups
 ├── docker/console.py     the live log + command console behind docker.sh up/attach
 ├── Emily-Server/
