@@ -1,0 +1,41 @@
+# This folder is mostly world data, backups and jars (tens of GB), so git ignores
+# everything by default and only the small hand-edited text files below are tracked.
+/*
+!/.gitignore
+!/README.md
+!/scripts/
+
+# Never commit generated files anywhere, even inside allowed folders
+# (some mods, e.g. CustomSpawner, write logs into config/).
+__pycache__/
+*.pyc
+*.log
+*.lock
+*.zip
+*.7z
+
+# --- Emily-Server (Fabric 26.3) ---
+!/Emily-Server/
+/Emily-Server/*
+!/Emily-Server/server.conf
+!/Emily-Server/server.properties
+!/Emily-Server/config/
+!/Emily-Server/mods.txt
+!/Emily-Server/eula.txt
+!/Emily-Server/whitelist.json
+!/Emily-Server/ops.json
+
+# --- HBM-Space-Server-3 (Forge 1.7.10) ---
+!/HBM-Space-Server-3/
+/HBM-Space-Server-3/*
+!/HBM-Space-Server-3/server.conf
+!/HBM-Space-Server-3/server.properties
+!/HBM-Space-Server-3/config/
+!/HBM-Space-Server-3/mods.txt
+!/HBM-Space-Server-3/eula.txt
+!/HBM-Space-Server-3/whitelist.json
+!/HBM-Space-Server-3/ops.json
+# Older per-server scripts, kept for reference (mod sync tool for HBM).
+!/HBM-Space-Server-3/server-scripts/
+
+# A new server folder stays ignored until it gets its own block above.

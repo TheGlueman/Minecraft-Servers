@@ -1,0 +1,10 @@
+{
+  "routes": [
+    {
+      "enabled": true,
+      "path": "dynmap",
+      "targetPort": 8123,
+      "targetPathPrefix": "/"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+[Unit]
+Description=Update the shared Minecraft DNS record
+
+[Service]
+Type=simple
+ExecStart=%h/Minecraft-Servers/scripts/dns-updater.sh
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target
