@@ -3,7 +3,7 @@
 Two modded Minecraft servers that share one set of launch, backup and DNS scripts.
 
 | Server | Folder | Loader | Java | Port | Connect with |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | Emily | `Emily-Server/` | Fabric 26.3 | 25 | 25566 | `TFSMinecraft.chickenkiller.com:25566` |
 | HBM Space | `HBM-Space-Server-3/` | Forge 1.7.10 | 8 | 25565 | `TFSMinecraft.chickenkiller.com` |
 
@@ -12,7 +12,7 @@ Two modded Minecraft servers that share one set of launch, backup and DNS script
 The server runs in your terminal, so that window is both the log and the console.
 
 | To | Do this |
-|---|---|
+| --- | --- |
 | Start | `./scripts/run.sh emily` (or `hbm`) |
 | See the logs | Watch that terminal, or `tail -f Emily-Server/logs/latest.log` from elsewhere |
 | Run a console command | Type it into that terminal, without a `/` (e.g. `list`, `say hi`) |
@@ -34,43 +34,47 @@ updater setup.
 ## Docker servers (emily-test)
 
 A Docker test of Emily lives in `docker/emily-test/` and runs on a copy of the world
-in `Emily-Docker-Test/` (port 25567, this PC only). Run `docker compose` commands
-from that folder (`cd docker/emily-test`); run `./docker.sh` from the repo root
-(from `docker/emily-test` it is `../../docker.sh`).
+in `Emily-Docker-Test/` (port 25567, this PC only). Everything goes through
+`docker.sh` in the repo root (from another folder, give its path, e.g. `../../docker.sh`).
 
 | To | Do this |
 |---|---|
-| Start | `docker compose up -d` |
-| See the logs | `docker compose logs -f mc` (Ctrl+C stops watching, not the server); backup messages: `docker compose logs -f backups` |
-| Run a console command | `docker compose exec mc rcon-cli` opens a console (Ctrl+D to leave); one command: `docker compose exec mc rcon-cli say hi` |
-| Shut down | `./docker.sh emily-test stop`: warns players, stops, then makes a full backup |
-| Restart | `./docker.sh emily-test restart`: the same as stop, then starts it again |
+| Start | `./docker.sh emily-test up`: shows the live log, and you type server commands into it, like `run.sh` |
+| Start in the background | `./docker.sh emily-test up -d` |
+| Shut down | Ctrl+C or type `stop` in the `up` view, or `./docker.sh emily-test down`: warns players 10 seconds ahead (only if anyone is on; Ctrl+C again cancels), stops, then makes a full backup |
+| Leave it running | Ctrl+D in the `up` view, or just close the window |
+| Get back to it | `./docker.sh emily-test attach` |
+| See the logs | `./docker.sh emily-test logs` (Ctrl+C only stops watching) |
+| Run a console command | Type it in the `up`/`attach` view, or `./docker.sh emily-test console` (commands, no log), or one command: `./docker.sh emily-test console say hi` |
 | Back up while running | `./docker.sh emily-test backup` (players stay on) |
-| Shut down without a backup | `docker compose down` |
+| Restart | `./docker.sh emily-test restart`: shut down with a backup, then start in the background |
+| Check on it | `./docker.sh emily-test status`: running or not, players, latest backups |
 
-After a crash the server restarts itself, up to 3 times. Stopping it yourself (any of
-the ways above, or `stop` in the console) never triggers a restart. To start it
-without auto-restart: `AUTO_RESTART=no docker compose up -d`.
+Options: `up --no-restart` (don't restart after a crash), `down --now` (skip the
+warning), `down --no-backup`.
 
-Backups go into `Emily-Docker-Test/backups-docker/`, three folders that each keep
-their newest 10:
+After a crash Docker restarts the server, up to 3 times. Stopping it yourself never
+triggers a restart.
 
-- `auto/`: live, every 24h of uptime (without Distant Horizons)
-- `manual/`: live, from `./docker.sh emily-test backup`
-- `shutdown/`: full, from `./docker.sh emily-test stop` or `restart`, made while the
-  server is off (players get a 10-second warning first, unless nobody is on)
+Backups all go in `Emily-Docker-Test/backups-docker/`, named by kind, keeping the
+newest 10 of each kind:
+
+- `…-auto.tar.gz`: live, every 24h of uptime (without Distant Horizons)
+- `…-manual.tar.gz`: live, from `backup` (without Distant Horizons)
+- `…-shutdown.tar.gz`: full, made while the server is off after a shutdown
 
 Players see backup start/finish/failure messages in chat. A crash never triggers a
-backup. More detail is in the comments at the top of `docker/emily-test/compose.yaml`.
+backup.
 
 ## Layout
 
-```
+```bash
 Minecraft-Servers/
-├── docker.sh             back up, stop or restart a Docker server (./docker.sh <name> backup|stop|restart)
+├── docker.sh             runs the Docker servers: up, down, backup, logs, console... (see its top)
 ├── scripts/              shared scripts (run, server, backup, sync-mods, DNS updater)
 ├── docker/emily-test/    Docker test setup for Emily (compose.yaml)
 ├── docker/backup-hooks/  chat announcements and pruning for Docker backups
+├── docker/console.py     the live log + command console behind docker.sh up/attach
 ├── Emily-Server/
 │   ├── server.conf       Java path, JAR, RAM, extra JVM flags, backup settings
 │   ├── server.properties

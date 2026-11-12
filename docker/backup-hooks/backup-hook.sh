@@ -4,10 +4,10 @@
 #   backup-hook.sh start                  PRE_SAVE_ALL_SCRIPT: announce the backup in chat
 #   backup-hook.sh done STATUS LOGFILE    POST_BACKUP_SCRIPT: file it, prune, announce result
 #
-# Live backups are written to DEST_DIR (backups/auto). A manual backup is the same
-# backup run with BACKUP_KIND=manual (docker.sh <name> backup); it is moved to
-# backups/manual afterwards. After a good backup the newest KEEP_BACKUPS (default 10)
-# in its folder are kept. A failed backup's broken archive is deleted and nothing is pruned.
+# mc-backup writes <name>-<time>.tar.gz into DEST_DIR; this renames it to
+# <name>-<time>-auto.tar.gz, or -manual.tar.gz for a backup run with BACKUP_KIND=manual
+# (docker.sh <name> backup). After a good backup the newest KEEP_BACKUPS (default 10) of
+# that kind are kept. A failed backup's broken archive is deleted and nothing is pruned.
 #
 # The backup loop runs with "set -e", so this script must never fail: it always exits 0.
 
@@ -36,8 +36,10 @@ start)
 done)
     status=${2:-1}
     backup_log=${3:-}
-    # The archive this run wrote: the newest one created since "start".
-    archive=$(find "$dest" -maxdepth 1 -name '*.tar.gz' -newer "$marker" 2>/dev/null | sort | tail -n 1)
+    # The archive this run wrote: the newest not-yet-renamed one (name ends in the time)
+    # created since "start".
+    archive=$(find "$dest" -maxdepth 1 -name '*-[0-9][0-9][0-9][0-9][0-9][0-9].tar.gz' \
+        -newer "$marker" 2>/dev/null | sort | tail -n 1)
     rm -f "$marker"
 
     # tar exit 1 = "file changed as we read it": the archive is complete and usable, and
@@ -58,18 +60,14 @@ done)
         exit 0
     fi
 
-    folder=$dest
-    if [[ $kind == manual ]]; then
-        folder=$(dirname -- "$dest")/manual
-        if mkdir -p "$folder" && mv -- "$archive" "$folder/"; then
-            archive="$folder/$(basename -- "$archive")"
-        else
-            log "could not move $archive to $folder; left it in $dest"
-            folder=$dest
-        fi
+    named="${archive%.tar.gz}-$kind.tar.gz"
+    if mv -- "$archive" "$named"; then
+        archive=$named
+        log "backup saved: $archive"
+        "$hooks_dir/prune.sh" "$dest" "$keep" "$kind" || log "pruning old $kind backups failed"
+    else
+        log "backup saved: $archive (could not rename it to $named, so it is never pruned)"
     fi
-    log "backup saved: $archive"
-    "$hooks_dir/prune.sh" "$folder" "$keep" || log "pruning $folder failed"
     size=$(du -h -- "$archive" 2>/dev/null | cut -f1)
     say green "$label backup finished (${size:-?}B)."
     ;;

@@ -1,26 +1,21 @@
 # Docker test of the Emily server, running on a COPY of its world.
 #
-#   cd docker/emily-test
-#   docker compose up -d                                # start; restarts up to 3 times after crashes
-#   AUTO_RESTART=no docker compose up -d                # start; stays down after a crash
-#     (stopping it yourself, or "stop" in the console, never triggers a restart)
-#   docker compose logs -f mc                           # follow the server log
-#   docker compose exec mc rcon-cli                     # server console (type commands)
-#   ../../docker.sh emily-test backup                   # live backup now -> manual/
-#   ../../docker.sh emily-test stop                     # warn players, stop, full backup -> shutdown/
-#   ../../docker.sh emily-test restart                  # same as stop, then start again
-#   docker compose down                                 # stop WITHOUT a backup
+#   ../../docker.sh emily-test up        start, live log + console (Ctrl+C: stop with backup)
+#   ../../docker.sh emily-test up -d     start in the background
+#   ../../docker.sh emily-test down      warn players, stop, full backup
+#   ../../docker.sh emily-test backup    live backup now
+#   (also restart, logs, console, attach, status: see the top of docker.sh)
 #
-# Backups (in ../../Emily-Docker-Test/backups-docker/, .tar.gz):
-#   auto/      live, every 24h the server has been up (none at start)
-#   manual/    live, from "docker.sh ... backup" (a raw "exec backups backup now" lands in auto/)
-#   shutdown/  full, from "docker.sh ... stop/restart", made while the server is off
-# Live backups leave out Distant Horizons (its databases can't be paused); shutdown ones
-# include it. A crash never triggers a backup. Each folder keeps its newest KEEP_BACKUPS (10),
-# pruned only right after a good backup. Players see start/finish/failure messages in chat
-# (docker/backup-hooks/).
+# Use docker.sh rather than "docker compose" directly: it handles backups, warnings and
+# crashes. Docker restarts the server up to 3 times after a crash (docker.sh up --no-restart
+# to turn that off); stopping it yourself never triggers a restart.
 #
-# Data:     ../../Emily-Docker-Test/              (a copy; the real Emily-Server is untouched)
+# Backups (../../Emily-Docker-Test/backups-docker/, one folder, named by kind, newest 10 of
+# each kind kept): -auto (every 24h of uptime, live, without Distant Horizons), -manual
+# (docker.sh backup, live), -shutdown (full, made while the server is off). A crash never
+# triggers a backup. Chat messages: docker/backup-hooks/.
+#
+# Data:     ../../Emily-Docker-Test/   (a copy; the real Emily-Server is untouched)
 # Join:     localhost:25567 from this PC only.
 # RCON:     password in ~/.config/minecraft-servers/emily-test-rcon.env (outside git);
 #           also reachable from this PC only, on 127.0.0.1:25576.
@@ -67,13 +62,12 @@ services:
       SERVER_HOST: mc
       SERVER_PORT: "25566"
       BACKUP_NAME: emily-test
-      DEST_DIR: /backups/auto
       BACKUP_INTERVAL: 24h
       # No backup at start: the first live backup comes after 24h of uptime.
       BACKUP_ON_STARTUP: "false"
       INITIAL_DELAY: 0s
       # The image's own pruning is off (it also prunes after failed backups);
-      # backup-hook.sh keeps the newest KEEP_BACKUPS per folder after each good backup.
+      # backup-hook.sh keeps the newest KEEP_BACKUPS of each kind after each good backup.
       PRUNE_BACKUPS_DAYS: "0"
       KEEP_BACKUPS: "10"
       # Chat announcements and pruning. The hooks must never fail the backup loop.
