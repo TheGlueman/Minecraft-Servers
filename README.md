@@ -1,11 +1,12 @@
 # Minecraft Servers
 
-Two modded Minecraft servers that share one set of launch, backup and DNS scripts.
+Two modded Minecraft servers. The originals run with the legacy `run.sh` scripts in
+`legacy/`; Docker copies of both run through `./docker.sh`.
 
 | Server | Folder | Loader | Java | Port | Connect with |
 | --- | --- | --- | --- | --- | --- |
-| Emily | `Emily-Server/` | Fabric 26.3 | 25 | 25566 | `TFSMinecraft.chickenkiller.com:25566` |
-| HBM Space | `HBM-Space-Server-3/` | Forge 1.7.10 | 8 | 25565 | `TFSMinecraft.chickenkiller.com` |
+| Emily | `legacy/Emily-Server/` | Fabric 26.3 | 25 | 25566 | `TFSMinecraft.chickenkiller.com:25566` |
+| HBM Space | `legacy/HBM-Space-Server-3/` | Forge 1.7.10 | 8 | 25565 | `TFSMinecraft.chickenkiller.com` |
 
 ## Servers started with run.sh (Emily, HBM)
 
@@ -13,28 +14,28 @@ The server runs in your terminal, so that window is both the log and the console
 
 | To | Do this |
 | --- | --- |
-| Start | `./scripts/run.sh emily` (or `hbm`) |
-| See the logs | Watch that terminal, or `tail -f Emily-Server/logs/latest.log` from elsewhere |
+| Start | `./legacy/scripts/run.sh emily` (or `hbm`) |
+| See the logs | Watch that terminal, or `tail -f legacy/Emily-Server/logs/latest.log` from elsewhere |
 | Run a console command | Type it into that terminal, without a `/` (e.g. `list`, `say hi`) |
 | Shut down | Type `stop`, or press Ctrl+C. It saves, stops, then backs up the world |
-| Back up | Happens on every shutdown you ask for (never after a crash). For a stopped server: `./scripts/backup.sh Emily-Server` |
+| Back up | Happens on every shutdown you ask for (never after a crash). For a stopped server: `./legacy/scripts/backup.sh legacy/Emily-Server` |
 
 Other options:
 
 ```sh
-./scripts/run.sh emily --check       # check Java and the JAR without starting
-./scripts/run.sh emily --no-backup   # don't back up when it stops
-./scripts/sync-mods.py emily --dry-run   # what a mod/config sync would change
-./scripts/sync-mods.py emily         # sync mods and configs from the client profile
+./legacy/scripts/run.sh emily --check       # check Java and the JAR without starting
+./legacy/scripts/run.sh emily --no-backup   # don't back up when it stops
+./scripts/sync-mods.py emily --dry-run      # what a mod/config sync would change
+./scripts/sync-mods.py emily                # sync mods and configs from the client profile
 ```
 
-See [scripts/README.md](scripts/README.md) for script details and the DNS
-updater setup.
+See [legacy/README.md](legacy/README.md) for the run.sh scripts and
+[scripts/README.md](scripts/README.md) for mod sync and the DNS updater setup.
 
 ## Docker servers
 
 Docker copies of both servers run alongside the real ones, on this PC only. The real
-`Emily-Server/` and `HBM-Space-Server-3/` are untouched.
+`legacy/Emily-Server/` and `legacy/HBM-Space-Server-3/` are untouched.
 
 | Name | Copy of | Join at |
 | --- | --- | --- |
@@ -95,7 +96,7 @@ and fill it in, put the server's files in `docker/<name>/server/`, then
 ```bash
 Minecraft-Servers/
 ├── docker.sh             runs the Docker servers: up, down, backup, logs, console... (see its top)
-├── scripts/              shared scripts (run, server, backup, sync-mods, DNS updater)
+├── scripts/              shared by both setups: sync-mods.py, DNS updater + systemd unit
 ├── docker/
 │   ├── compose.yaml      how every Docker server runs (one file for all of them)
 │   ├── server.conf.example  template for a new Docker server's settings
@@ -103,16 +104,18 @@ Minecraft-Servers/
 │   ├── console.py        the live log + command console behind docker.sh up/attach
 │   ├── emily-server/     server.conf + server/ (its files; not in git)
 │   └── hbm-server/       server.conf + server/ (its files; not in git)
-├── Emily-Server/
-│   ├── server.conf       Java path, JAR, RAM, extra JVM flags, backup settings
-│   ├── server.properties
-│   ├── config/           mod configs
-│   ├── mods/             mod jars (not in git; see mods.txt)
-│   ├── world/            (not in git)
-│   └── backups/          world backups, cleared by hand (not in git)
-└── HBM-Space-Server-3/   same layout, plus server-scripts/: backup.sh and
-                          DNS-updater.sh wrappers that call scripts/, and the
-                          old sync_server_mods.py (to be archived)
+└── legacy/               the original servers and the run.sh scripts that run them
+    ├── scripts/          run.sh, server.sh, backup.sh, lib/servers.sh
+    ├── Emily-Server/
+    │   ├── server.conf   Java path, JAR, RAM, extra JVM flags, backup settings
+    │   ├── server.properties
+    │   ├── config/       mod configs
+    │   ├── mods/         mod jars (not in git; see mods.txt)
+    │   ├── world/        (not in git)
+    │   └── backups/      world backups, cleared by hand (not in git)
+    └── HBM-Space-Server-3/  same layout, plus server-scripts/: backup.sh and
+                          DNS-updater.sh wrappers that call the scripts above,
+                          and the old sync_server_mods.py (to be archived)
 ```
 
 ## What's in git

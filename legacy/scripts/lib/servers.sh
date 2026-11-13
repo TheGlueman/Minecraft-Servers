@@ -1,6 +1,6 @@
 # Shared helpers for finding servers. Source this file; it defines functions only.
 #
-# A server is any folder next to scripts/ that contains a server.conf with a NAME=
+# A server is any folder next to scripts/ (legacy/<folder>) that contains a server.conf with a NAME=
 # line. server.conf is trusted Bash configuration, so it is read by sourcing it in
 # a subshell, which keeps its variables out of the caller.
 

@@ -85,8 +85,10 @@ def read_server_conf(conf: Path) -> Server | None:
 
 def find_servers() -> dict[str, Server]:
     servers: dict[str, Server] = {}
-    # run.sh servers (<folder>/server.conf) and Docker servers (docker/<name>/server.conf).
-    confs = sorted(REPO_ROOT.glob("*/server.conf")) + sorted(REPO_ROOT.glob("docker/*/server.conf"))
+    # Legacy run.sh servers (legacy/<folder>/server.conf) and Docker servers
+    # (docker/<name>/server.conf).
+    confs = (sorted(REPO_ROOT.glob("legacy/*/server.conf"))
+             + sorted(REPO_ROOT.glob("docker/*/server.conf")))
     for conf in confs:
         server = read_server_conf(conf)
         if not server:

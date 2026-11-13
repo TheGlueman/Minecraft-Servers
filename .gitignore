@@ -24,28 +24,34 @@ __pycache__/
 *.zip
 *.7z
 
-# --- Emily-Server (Fabric 26.3) ---
-!/Emily-Server/
-/Emily-Server/*
-!/Emily-Server/server.conf
-!/Emily-Server/server.properties
-!/Emily-Server/config/
-!/Emily-Server/mods.txt
-!/Emily-Server/eula.txt
-!/Emily-Server/whitelist.json
-!/Emily-Server/ops.json
+# --- legacy/: the old run.sh setup (scripts and the two original server folders) ---
+!/legacy/
+/legacy/*
+!/legacy/README.md
+!/legacy/scripts/
 
-# --- HBM-Space-Server-3 (Forge 1.7.10) ---
-!/HBM-Space-Server-3/
-/HBM-Space-Server-3/*
-!/HBM-Space-Server-3/server.conf
-!/HBM-Space-Server-3/server.properties
-!/HBM-Space-Server-3/config/
-!/HBM-Space-Server-3/mods.txt
-!/HBM-Space-Server-3/eula.txt
-!/HBM-Space-Server-3/whitelist.json
-!/HBM-Space-Server-3/ops.json
+# --- legacy/Emily-Server (Fabric 26.3) ---
+!/legacy/Emily-Server/
+/legacy/Emily-Server/*
+!/legacy/Emily-Server/server.conf
+!/legacy/Emily-Server/server.properties
+!/legacy/Emily-Server/config/
+!/legacy/Emily-Server/mods.txt
+!/legacy/Emily-Server/eula.txt
+!/legacy/Emily-Server/whitelist.json
+!/legacy/Emily-Server/ops.json
+
+# --- legacy/HBM-Space-Server-3 (Forge 1.7.10) ---
+!/legacy/HBM-Space-Server-3/
+/legacy/HBM-Space-Server-3/*
+!/legacy/HBM-Space-Server-3/server.conf
+!/legacy/HBM-Space-Server-3/server.properties
+!/legacy/HBM-Space-Server-3/config/
+!/legacy/HBM-Space-Server-3/mods.txt
+!/legacy/HBM-Space-Server-3/eula.txt
+!/legacy/HBM-Space-Server-3/whitelist.json
+!/legacy/HBM-Space-Server-3/ops.json
 # Older per-server scripts, kept for reference (mod sync tool for HBM).
-!/HBM-Space-Server-3/server-scripts/
+!/legacy/HBM-Space-Server-3/server-scripts/
 
-# A new server folder stays ignored until it gets its own block above.
+# New servers go in docker/<name>/ (see docker/server.conf.example), which is already allowed.

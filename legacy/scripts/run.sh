@@ -2,6 +2,7 @@
 set -euo pipefail
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# The servers are the folders next to this scripts/ folder (legacy/Emily-Server, ...).
 repo_root=$(dirname -- "$script_dir")
 # shellcheck source=lib/servers.sh
 source "$script_dir/lib/servers.sh"
