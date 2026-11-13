@@ -31,25 +31,31 @@ Other options:
 See [scripts/README.md](scripts/README.md) for script details and the DNS
 updater setup.
 
-## Docker servers (emily-test)
+## Docker servers
 
-A Docker test of Emily lives in `docker/emily-test/`: `compose.yaml` says how to run
-it, and `server/` next to it holds its files (a copy of Emily's world, mods and jar,
-plus its backups; not in git). Port 25567, this PC only. Everything goes through
-`docker.sh` in the repo root (from another folder, give its path, e.g. `../../docker.sh`).
+Docker copies of both servers run alongside the real ones, on this PC only. The real
+`Emily-Server/` and `HBM-Space-Server-3/` are untouched.
+
+| Name | Copy of | Join at |
+| --- | --- | --- |
+| `emily-server` | Emily (Fabric 26.3, Java 25) | `localhost:25567` |
+| `hbm-server` | HBM Space (Forge 1.7.10, Java 8) | `localhost:25568` |
+
+Everything goes through `docker.sh` in the repo root: `./docker.sh <name> <command>`.
 
 | To | Do this |
-|---|---|
-| Start | `./docker.sh emily-test up`: shows the live log, and you type server commands into it, like `run.sh` |
-| Start in the background | `./docker.sh emily-test up -d` |
-| Shut down | Ctrl+C or type `stop` in the `up` view, or `./docker.sh emily-test down`: warns players 10 seconds ahead (only if anyone is on; Ctrl+C again cancels), stops, then makes a full backup |
+| --- | --- |
+| Start | `./docker.sh emily-server up`: shows the live log, and you type server commands into it, like `run.sh` |
+| Start in the background | `./docker.sh emily-server up -d` |
+| Shut down | Ctrl+C or type `stop` in the `up` view, or `./docker.sh emily-server down`: warns players 10 seconds ahead (only if anyone is on; Ctrl+C again cancels), stops, then makes a full backup |
 | Leave it running | Ctrl+D in the `up` view, or just close the window |
-| Get back to it | `./docker.sh emily-test attach` |
-| See the logs | `./docker.sh emily-test logs` (Ctrl+C only stops watching) |
-| Run a console command | Type it in the `up`/`attach` view, or `./docker.sh emily-test console` (commands, no log), or one command: `./docker.sh emily-test console say hi` |
-| Back up while running | `./docker.sh emily-test backup` (players stay on) |
-| Restart | `./docker.sh emily-test restart`: shut down with a backup, then start in the background |
-| Check on it | `./docker.sh emily-test status`: running or not, players, latest backups |
+| Get back to it | `./docker.sh emily-server attach` |
+| See the logs | `./docker.sh emily-server logs` (Ctrl+C only stops watching) |
+| Run a console command | Type it in the `up`/`attach` view, or `./docker.sh emily-server console` (commands, no log), or one command: `./docker.sh emily-server console say hi` |
+| Back up while running | `./docker.sh emily-server backup` (players stay on) |
+| Restart | `./docker.sh emily-server restart`: shut down with a backup, then start in the background |
+| Check on it | `./docker.sh emily-server status`: running or not, players, latest backups |
+| Update mods and configs | `./docker.sh emily-server sync --dry-run`, then `sync` (only while it is stopped) |
 
 Options: `up --no-restart` (don't restart after a crash), `down --now` (skip the
 warning), `down --no-backup`.
@@ -57,7 +63,7 @@ warning), `down --no-backup`.
 After a crash Docker restarts the server, up to 3 times. Stopping it yourself never
 triggers a restart.
 
-Backups all go in `docker/emily-test/server/backups-docker/`, named by kind, keeping the
+Backups go in `docker/<name>/server/backups-docker/`, named by kind, keeping the
 newest 10 of each kind:
 
 - `…-auto.tar.gz`: live, every 24h of uptime (without Distant Horizons)
@@ -67,16 +73,36 @@ newest 10 of each kind:
 Players see backup start/finish/failure messages in chat. A crash never triggers a
 backup.
 
+### How a Docker server is put together
+
+Each server is just a folder, `docker/<name>/`, holding:
+
+- `server.conf`: its settings: Java image, Minecraft version, jar, RAM, Java flags,
+  ports and mod sync settings (in git)
+- `server/`: its files: world, mods, configs, jar, `server.properties` and backups (not in git)
+
+Everything else is shared by all of them: `docker/compose.yaml` (how every server
+runs), `docker/backup-hooks/` (chat messages and pruning) and `docker/console.py`
+(the `up`/`attach` view). The RCON password for each server is created on first use
+in `~/.config/minecraft-servers/<name>-rcon.env`.
+
+To add a server: copy `docker/server.conf.example` to `docker/<name>/server.conf`
+and fill it in, put the server's files in `docker/<name>/server/`, then
+`./docker.sh <name> up`.
+
 ## Layout
 
 ```bash
 Minecraft-Servers/
 ├── docker.sh             runs the Docker servers: up, down, backup, logs, console... (see its top)
 ├── scripts/              shared scripts (run, server, backup, sync-mods, DNS updater)
-├── docker/emily-test/    Docker test of Emily: compose.yaml (how to run it) and
-│                         server/ (its world, mods, jar and backups; not in git)
-├── docker/backup-hooks/  chat announcements and pruning for Docker backups
-├── docker/console.py     the live log + command console behind docker.sh up/attach
+├── docker/
+│   ├── compose.yaml      how every Docker server runs (one file for all of them)
+│   ├── server.conf.example  template for a new Docker server's settings
+│   ├── backup-hooks/     chat announcements and pruning for Docker backups
+│   ├── console.py        the live log + command console behind docker.sh up/attach
+│   ├── emily-server/     server.conf + server/ (its files; not in git)
+│   └── hbm-server/       server.conf + server/ (its files; not in git)
 ├── Emily-Server/
 │   ├── server.conf       Java path, JAR, RAM, extra JVM flags, backup settings
 │   ├── server.properties

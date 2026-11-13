@@ -15,6 +15,12 @@
 #   ./docker.sh <name> console [COMMAND]  type server commands (no log), or send one
 #   ./docker.sh <name> attach             the "up" view for a server already running
 #   ./docker.sh <name> status             running?, players online, latest backups
+#   ./docker.sh <name> sync [--dry-run]   update mods/configs from the launcher profile
+#                                         (scripts/sync-mods.py; only while stopped)
+#
+# Each server is a folder docker/<name>/ with its settings in server.conf (see
+# docker/server.conf.example) and its files in server/. All servers share
+# docker/compose.yaml; nothing else is per server.
 #
 # Backups all go in one folder, named by kind; the newest KEEP_BACKUPS (10) of each kind are
 # kept, pruned only right after a good backup of that kind:
@@ -26,11 +32,11 @@
 set -uo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-commands='up|down|restart|backup|logs|console|attach|status'
+commands='up|down|restart|backup|logs|console|attach|status|sync'
 
 usage() {
     local names=() f
-    for f in "$repo_root"/docker/*/compose.yaml; do
+    for f in "$repo_root"/docker/*/server.conf; do
         [[ -f "$f" ]] && names+=("$(basename -- "$(dirname -- "$f")")")
     done
     local IFS='|'
@@ -45,9 +51,10 @@ fi
 name=$1
 action=$2
 shift 2
-compose_file="$repo_root/docker/$name/compose.yaml"
-if [[ "$name" == */* || ! -f "$compose_file" ]]; then
-    printf 'Error: no Docker server named %s (looked for %s)\n' "$name" "$compose_file" >&2
+server_folder="$repo_root/docker/$name"
+conf_file="$server_folder/server.conf"
+if [[ "$name" == */* || "$name" == .* || ! -f "$conf_file" ]]; then
+    printf 'Error: no Docker server named %s (looked for %s)\n' "$name" "$conf_file" >&2
     usage >&2
     exit 2
 fi
@@ -57,7 +64,49 @@ if [[ "|$commands|" != *"|$action|"* ]]; then
     exit 2
 fi
 
-compose() { docker compose -f "$compose_file" "$@"; }
+# The server's settings (trusted Bash, like the run.sh servers' server.conf), passed to the
+# shared docker/compose.yaml as environment variables.
+source "$conf_file" || exit 1
+for var in NAME JAVA_IMAGE MC_VERSION JAR_FILE RAM_ALLOCATION GAME_PORT RCON_PORT; do
+    if [[ -z "${!var:-}" ]]; then
+        printf 'Error: %s must be set in %s\n' "$var" "$conf_file" >&2
+        exit 1
+    fi
+done
+if [[ "$NAME" != "$name" ]]; then
+    printf 'Error: NAME=%s in %s must match its folder name, %s.\n' "$NAME" "$conf_file" "$name" >&2
+    exit 1
+fi
+[[ -v JAVA_ARGS ]] || JAVA_ARGS=()
+SERVER_NAME=$NAME
+JVM_OPTS="${JAVA_ARGS[*]}"
+# The port the server listens on inside the container: its own server.properties decides.
+SERVER_PORT=$(sed -n 's/^server-port=\([0-9][0-9]*\).*/\1/p' "$server_folder/server/server.properties" 2>/dev/null | tail -n 1)
+SERVER_PORT=${SERVER_PORT:-25565}
+export SERVER_NAME JAVA_IMAGE MC_VERSION JAR_FILE RAM_ALLOCATION JVM_OPTS SERVER_PORT GAME_PORT RCON_PORT
+
+# RCON password for this server, made on first use (outside git, readable only by you).
+rcon_env="$HOME/.config/minecraft-servers/$NAME-rcon.env"
+if [[ ! -f "$rcon_env" ]]; then
+    if [[ ! -d "$(dirname -- "$rcon_env")" ]]; then
+        mkdir -p -- "$(dirname -- "$rcon_env")" && chmod 700 -- "$(dirname -- "$rcon_env")" || exit 1
+    fi
+    (umask 077 && printf 'RCON_PASSWORD=%s\n' "$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')" > "$rcon_env") || exit 1
+    printf 'Made an RCON password for %s in %s\n' "$NAME" "$rcon_env"
+fi
+
+if [[ ! -d "$server_folder/server" ]]; then
+    printf 'Error: %s has no server/ folder with the server files in it.\n' "$server_folder" >&2
+    exit 1
+fi
+# Make the backup folder ourselves: if Docker had to create it for the mount it would be
+# owned by root, and so would the backups and the lock file in it.
+mkdir -p -- "$server_folder/server/backups-docker" || exit 1
+
+compose() {
+    docker compose -f "$repo_root/docker/compose.yaml" --project-directory "$server_folder" \
+        -p "$NAME" "$@"
+}
 
 source "$repo_root/docker/backup-hooks/chat.sh"
 # say COLOUR TEXT: coloured chat message to everyone.
@@ -85,8 +134,8 @@ bad_option() {
     exit 2
 }
 
-# Sets data_dir, backup_dir, keep and excludes from compose.yaml itself, so they work
-# whether or not the containers are running and never drift from it.
+# Sets data_dir, backup_dir, keep and excludes from the Compose settings themselves, so
+# they work whether or not the containers are running and never drift from them.
 read_config() {
     {
         IFS= read -r data_dir
@@ -105,7 +154,7 @@ print(env.get("KEEP_BACKUPS") or 10)
 print(env.get("EXCLUDES", ""))
 ')
     if [[ -z "${data_dir:-}" || -z "${backup_dir:-}" ]]; then
-        printf 'Error: could not read the data or backup folder of %s from %s.\n' "$name" "$compose_file" >&2
+        printf 'Error: could not read the data or backup folder of %s.\n' "$name" >&2
         exit 1
     fi
     # mc-backup holds this lock while it copies.
@@ -363,7 +412,7 @@ backup)
     ;;
 logs)
     (( $# == 0 )) || bad_option "$1"
-    exec docker compose -f "$compose_file" logs -f --tail 100 --no-log-prefix mc
+    compose logs -f --tail 100 --no-log-prefix mc
     ;;
 console)
     if (( $# == 0 )); then
@@ -386,6 +435,10 @@ attach)
     (( $# == 0 )) || bad_option "$1"
     attach_console tail
     exit $?
+    ;;
+sync)
+    for opt in "$@"; do [[ "$opt" == --dry-run ]] || bad_option "$opt"; done
+    exec python3 -I "$repo_root/scripts/sync-mods.py" "$NAME" "$@"
     ;;
 status)
     (( $# == 0 )) || bad_option "$1"

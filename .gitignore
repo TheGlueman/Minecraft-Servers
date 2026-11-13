@@ -6,8 +6,14 @@
 !/scripts/
 !/docker/
 !/docker.sh
-# Each Docker server's own files (world, mods, jar, backups) live in docker/<name>/server/.
-/docker/*/server/
+# Each Docker server's files live in docker/<name>/server/. Track the same small files as
+# for the run.sh servers, except server.properties: Docker writes the RCON password into it.
+/docker/*/server/*
+!/docker/*/server/config/
+!/docker/*/server/mods.txt
+!/docker/*/server/eula.txt
+!/docker/*/server/whitelist.json
+!/docker/*/server/ops.json
 
 # Never commit generated files anywhere, even inside allowed folders
 # (some mods, e.g. CustomSpawner, write logs into config/).

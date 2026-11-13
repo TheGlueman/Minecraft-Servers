@@ -1,0 +1,31 @@
+# Settings for one Docker server: copy to docker/<name>/server.conf and fill in.
+# The server's files (world, mods, jar, server.properties, ...) go in docker/<name>/server/.
+# Everything not set here is shared by all servers in docker/compose.yaml.
+# Like the run.sh servers' server.conf, this is trusted Bash that the scripts source.
+
+# Must match the folder name; used with docker.sh and as the backup file prefix.
+NAME=example
+
+# itzg/minecraft-server with the Java this Minecraft version needs, pinned by digest
+# (java8 for 1.7.10-1.16, java21 for 1.20.5-1.21, java25 for 26.x). To pin a new one:
+#   docker pull itzg/minecraft-server:java21
+#   docker image inspect itzg/minecraft-server:java21 --format '{{index .RepoDigests 0}}'
+JAVA_IMAGE=itzg/minecraft-server:java21@sha256:<digest>
+MC_VERSION=1.21.1
+# The server jar inside server/ (the image runs it; it installs nothing).
+JAR_FILE=server.jar
+RAM_ALLOCATION=6G
+# Optional extra Java flags, as an array (no spaces inside a flag: they reach Java as one
+# space-separated string).
+JAVA_ARGS=()
+
+# Ports on this PC (127.0.0.1 only). Each server needs its own pair.
+GAME_PORT=25569
+RCON_PORT=25578
+
+# Mod sync (./docker.sh <name> sync): the launcher profile this server's mods come from.
+PROFILE_DIR="$HOME/path/to/launcher/profile"
+# Mods never to copy (matched case-insensitively against mod ID and file name).
+SYNC_EXCLUDE=()
+# Config files/folders (relative to config/, wildcards allowed) never overwritten.
+SYNC_CONFIG_SKIP=()

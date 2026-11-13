@@ -1,0 +1,71 @@
+# The one Compose file for every Docker server. Don't run it directly: use docker.sh
+# (./docker.sh <name> up, down, backup, ...), which reads docker/<name>/server.conf,
+# passes its values in here, and runs this with docker/<name>/ as the project folder,
+# so the relative paths below are that server's own.
+#
+# Per-server values (from server.conf, see docker/server.conf.example):
+#   SERVER_NAME     the folder name under docker/ (also the backup file prefix)
+#   JAVA_IMAGE      itzg/minecraft-server image with the right Java, pinned by digest
+#   MC_VERSION      Minecraft version, JAR_FILE: the server jar inside server/
+#   RAM_ALLOCATION  heap size; JVM_OPTS: extra Java flags (JAVA_ARGS in server.conf)
+#   SERVER_PORT     server-port from the server's own server.properties
+#   GAME_PORT, RCON_PORT  ports on this PC (127.0.0.1 only)
+# Everything else is shared by all servers.
+
+services:
+  mc:
+    image: ${JAVA_IMAGE:?}
+    # Restart up to 3 times after a crash; stopping it yourself never triggers a restart.
+    restart: ${AUTO_RESTART:-on-failure:3}
+    env_file: ${HOME}/.config/minecraft-servers/${SERVER_NAME:?}-rcon.env
+    environment:
+      EULA: "TRUE"
+      # Run the server jar already in the folder; the image installs nothing.
+      TYPE: CUSTOM
+      CUSTOM_SERVER: /data/${JAR_FILE:?}
+      VERSION: ${MC_VERSION:?}
+      # The health check pings this port.
+      SERVER_PORT: ${SERVER_PORT:?}
+      MEMORY: ${RAM_ALLOCATION:?}
+      JVM_OPTS: ${JVM_OPTS:-}
+      TZ: Europe/London
+      # Seconds the server gets to save after "stop" before it is killed.
+      STOP_DURATION: "90"
+    stop_grace_period: 120s
+    ports:
+      - "127.0.0.1:${GAME_PORT:?}:${SERVER_PORT:?}"
+      - "127.0.0.1:${RCON_PORT:?}:25575"
+    volumes:
+      - ./server:/data
+    stdin_open: true
+    tty: true
+
+  backups:
+    image: itzg/mc-backup:latest@sha256:096796a6f001a2bb7dd36a764ef9030cca30b9b1783401082f79e9ae0267e9b9
+    restart: ${AUTO_RESTART:-on-failure:3}
+    depends_on:
+      - mc
+    env_file: ${HOME}/.config/minecraft-servers/${SERVER_NAME:?}-rcon.env
+    environment:
+      RCON_HOST: mc
+      SERVER_HOST: mc
+      SERVER_PORT: ${SERVER_PORT:?}
+      BACKUP_NAME: ${SERVER_NAME:?}
+      BACKUP_INTERVAL: 24h
+      # No backup at start: the first live backup comes after 24h of uptime.
+      BACKUP_ON_STARTUP: "false"
+      INITIAL_DELAY: 0s
+      # The image's own pruning is off (it also prunes after failed backups);
+      # backup-hook.sh keeps the newest KEEP_BACKUPS of each kind after each good backup.
+      PRUNE_BACKUPS_DAYS: "0"
+      KEEP_BACKUPS: "10"
+      # Chat announcements and pruning. The hooks must never fail the backup loop.
+      PRE_SAVE_ALL_SCRIPT: /hooks/backup-hook.sh start || true
+      POST_BACKUP_SCRIPT: /hooks/backup-hook.sh done "$$@" || true
+      # Live backups leave out Distant Horizons: save-off can't pause its databases.
+      EXCLUDES: "*.jar,cache,logs,*.tmp,backups,backups-docker,DistantHorizons.sqlite*"
+      TZ: Europe/London
+    volumes:
+      - ./server:/data:ro
+      - ./server/backups-docker:/backups
+      - ../backup-hooks:/hooks:ro

@@ -59,7 +59,8 @@ must be unique.
 ## Mod sync
 
 `./scripts/sync-mods.py emily` updates a server's mods and configs from its client
-profile (Modrinth, CurseForge or any launcher folder with `mods/` and `config/`):
+profile. It works for the Docker servers too (`./docker.sh emily-server sync`, or
+`sync-mods.py emily-server`), on their `server/` folder. Profile (Modrinth, CurseForge or any launcher folder with `mods/` and `config/`):
 
 - `PROFILE_DIR` in `server.conf` is the full path to the profile folder.
 - `SYNC_EXCLUDE=(...)` lists mods never to copy, matched against mod ID and file name.

@@ -73,7 +73,9 @@ def read_server_conf(conf: Path) -> Server | None:
         return None
     return Server(
         name=name.lower(),
-        root=conf.parent,
+        # Docker servers (docker/<name>/server.conf) keep their files in server/ next to
+        # it; run.sh servers keep server.conf inside the server folder itself.
+        root=conf.parent / "server" if conf.parent.parent == REPO_ROOT / "docker" else conf.parent,
         jar_file=jar_file,
         profile_dir=Path(profile) if profile else None,
         exclude=[e for e in exclude if e],
@@ -83,7 +85,9 @@ def read_server_conf(conf: Path) -> Server | None:
 
 def find_servers() -> dict[str, Server]:
     servers: dict[str, Server] = {}
-    for conf in sorted(REPO_ROOT.glob("*/server.conf")):
+    # run.sh servers (<folder>/server.conf) and Docker servers (docker/<name>/server.conf).
+    confs = sorted(REPO_ROOT.glob("*/server.conf")) + sorted(REPO_ROOT.glob("docker/*/server.conf"))
+    for conf in confs:
         server = read_server_conf(conf)
         if not server:
             continue
@@ -539,7 +543,7 @@ def main() -> int:
         print(f"Unknown server: {args.server} (known: {', '.join(servers)})", file=sys.stderr)
         return 2
     if server.profile_dir is None:
-        print(f"PROFILE_DIR is not set in {server.root / 'server.conf'}", file=sys.stderr)
+        print(f"PROFILE_DIR is not set in the server.conf of {server.name}", file=sys.stderr)
         return 1
     if not (server.profile_dir / "mods").is_dir():
         print(f"Profile has no mods folder: {server.profile_dir}", file=sys.stderr)
