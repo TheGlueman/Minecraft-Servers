@@ -97,6 +97,7 @@ and fill it in, put the server's files in `docker/<name>/server/`, then
 Minecraft-Servers/
 ├── docker.sh             runs the Docker servers: up, down, backup, logs, console... (see its top)
 ├── scripts/              shared by both setups: sync-mods.py, DNS updater + systemd unit
+├── tests/                tests/run.sh: checks for docker.sh, the backup hooks and sync-mods
 ├── docker/
 │   ├── compose.yaml      how every Docker server runs (one file for all of them)
 │   ├── server.conf.example  template for a new Docker server's settings
@@ -117,6 +118,18 @@ Minecraft-Servers/
                           DNS-updater.sh wrappers that call the scripts above,
                           and the old sync_server_mods.py (to be archived)
 ```
+
+## Tests
+
+Run these after changing any of the scripts:
+
+```sh
+tests/run.sh          # fast: shellcheck, backup pruning and hooks, docker.sh checks, sync-mods (seconds)
+tests/run.sh --e2e    # also runs a throwaway copy of emily-server through up, backup,
+                      # restart, down and crashes (a few minutes; emily-server must be stopped)
+```
+
+None of them touch the real servers or their backups.
 
 ## What's in git
 

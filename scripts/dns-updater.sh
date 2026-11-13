@@ -7,6 +7,7 @@ if [[ ! -f "$config_file" ]]; then
     exit 1
 fi
 # This file contains a private update URL and must be readable only by its owner.
+# shellcheck source=/dev/null
 source "$config_file"
 : "${DNS_HOSTNAME:?DNS_HOSTNAME must be set in the DNS config}"
 : "${DNS_UPDATE_URL:?DNS_UPDATE_URL must be set in the DNS config}"

@@ -66,6 +66,7 @@ fi
 
 # The server's settings (trusted Bash, like the run.sh servers' server.conf), passed to the
 # shared docker/compose.yaml as environment variables.
+# shellcheck source=/dev/null # a different file per server
 source "$conf_file" || exit 1
 for var in NAME JAVA_IMAGE MC_VERSION JAR_FILE RAM_ALLOCATION GAME_PORT RCON_PORT; do
     if [[ -z "${!var:-}" ]]; then
@@ -73,6 +74,7 @@ for var in NAME JAVA_IMAGE MC_VERSION JAR_FILE RAM_ALLOCATION GAME_PORT RCON_POR
         exit 1
     fi
 done
+# shellcheck disable=SC2153 # NAME comes from server.conf, name from the command line
 if [[ "$NAME" != "$name" ]]; then
     printf 'Error: NAME=%s in %s must match its folder name, %s.\n' "$NAME" "$conf_file" "$name" >&2
     exit 1
@@ -337,7 +339,7 @@ attach_console() {
                 rc=$?
                 (( rc == 2 )) || return "$rc"
                 # Cancelled: back to the console, showing only recent log lines.
-                [[ "$logs" == all ]] && logs=tail
+                [[ "$logs" == all ]] && logs='tail'
                 ;;
             11)
                 printf '\nThe server was stopped outside this window. If that was docker.sh down or\n'
@@ -458,6 +460,7 @@ status)
             printf '%-9s backups: none\n' "$kind"
             continue
         fi
+        # shellcheck disable=SC2012 # backup names are ours: no spaces or newlines
         newest=$(ls -t -- "${files[@]}" | head -n 1)
         printf '%-9s backups: %2d, newest %s (%s)\n' "$kind" "${#files[@]}" \
             "$(basename -- "$newest")" "$(du -h -- "$newest" | cut -f1)"

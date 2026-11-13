@@ -6,6 +6,9 @@
 !/scripts/
 !/docker/
 !/docker.sh
+!/tests/
+# The end-to-end test's throwaway server copy.
+/tests/work/
 # Each Docker server's files live in docker/<name>/server/. Track the same small files as
 # for the run.sh servers, except server.properties: Docker writes the RCON password into it.
 /docker/*/server/*

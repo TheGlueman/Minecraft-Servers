@@ -14,7 +14,8 @@
 kind=${BACKUP_KIND:-auto}
 keep=${KEEP_BACKUPS:-10}
 dest=${DEST_DIR:-/backups}
-marker=/tmp/backup-hook-started
+# Overridable for tests (tests/test_backup_hook.sh).
+marker=${BACKUP_HOOK_MARKER:-/tmp/backup-hook-started}
 hooks_dir=$(dirname -- "${BASH_SOURCE[0]}")
 
 log() { printf '%s backup-hook: %s\n' "$(date -Iseconds)" "$*"; }
