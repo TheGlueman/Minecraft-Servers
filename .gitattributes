@@ -1,0 +1,4 @@
+# Every server.properties is stored with its passwords and secrets blanked (on disk they
+# keep their values). The filter is set up by scripts/secret-filter.sh --install, which
+# docker.sh runs; see that script.
+server.properties filter=server-secrets

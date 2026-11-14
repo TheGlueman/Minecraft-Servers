@@ -1,7 +1,8 @@
 # Shared Minecraft server scripts
 
 The scripts here are shared by the legacy run.sh servers (`legacy/`) and the Docker
-servers (`docker/`): mod sync and the DNS updater. The run.sh launch and backup
+servers (`docker/`): mod sync, the DNS updater and the git filter that keeps secrets in
+`server.properties` out of git (`secret-filter.sh`, see the main README). The run.sh launch and backup
 scripts are in `legacy/scripts/` (see [legacy/README.md](../legacy/README.md)).
 
 ## Shared DNS updater

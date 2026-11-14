@@ -111,6 +111,12 @@ DOCKER_DIR="$repo_root/docker"
 export SERVER_NAME JAVA_IMAGE MC_VERSION JAR_FILE RAM_ALLOCATION JVM_OPTS SERVER_PORT GAME_PORT RCON_PORT \
     BIND_ADDRESS ADMIN_NAME DOCKER_DIR
 
+# Keep the secrets in server.properties out of git (sets up the git filter once).
+# (Not in the tests' copies of the tooling, which have no scripts/.)
+if [[ -x "$repo_root/scripts/secret-filter.sh" ]]; then
+    "$repo_root/scripts/secret-filter.sh" --install || true
+fi
+
 # RCON password for this server, made on first use (outside git, readable only by you).
 rcon_env="$HOME/.config/minecraft-servers/$NAME-rcon.env"
 if [[ ! -f "$rcon_env" ]]; then

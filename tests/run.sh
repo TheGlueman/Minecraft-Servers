@@ -3,8 +3,9 @@
 #                  tests/run.sh --e2e    also the Docker end-to-end test (a few minutes)
 #
 # Fast tests: the backup pruning and hook scripts, docker.sh's argument and server.conf
-# checks, and sync-mods.py. None of them touch the real servers. (shellcheck and the
-# formatters run in pre-commit: see .pre-commit-config.yaml.) The end-to-end test runs a throwaway copy of emily-server; see
+# checks, the server.properties secrets filter, and sync-mods.py. None of them touch the
+# real servers. (shellcheck and the formatters run in pre-commit: see
+# .pre-commit-config.yaml.) The end-to-end test runs a throwaway copy of emily-server; see
 # tests/e2e_docker.sh.
 set -uo pipefail
 tests_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)

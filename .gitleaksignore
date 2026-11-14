@@ -1,0 +1,7 @@
+# Known findings in old commits (the history is not rewritten).
+#
+# Emily's management-server-secret, committed in the first commit and pushed. The
+# management server was always disabled, and the secret was blanked (rotated) in both
+# Emily copies on 2026-11-14; server.properties secrets are now kept out of git by
+# scripts/secret-filter.sh.
+af7ad6d05bef0dc0ef7e1c353ba5b3f1fd9fd957:Emily-Server/server.properties:generic-api-key:36

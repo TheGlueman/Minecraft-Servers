@@ -136,3 +136,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(docker\.sh|docker/|scripts/|tests/|ruff\.toml)
+
+      # This repo: no password or secret in a staged server.properties, even in a clone
+      # where the filter that blanks them is not set up (it reads the staged copies itself,
+      # so the exclude above does not hide the server folders from it).
+      - id: server-properties-secrets
+        name: no secrets in server.properties
+        entry: scripts/secret-filter.sh --check
+        language: system
+        pass_filenames: false
+        always_run: true

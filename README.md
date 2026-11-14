@@ -101,7 +101,8 @@ To add a server: copy `docker/server.conf.example` to
 ```bash
 Minecraft-Servers/
 ├── docker.sh             runs the Docker servers: up, down, backup, logs, console... (see its top)
-├── scripts/              shared by both setups: sync-mods.py, DNS updater + systemd unit
+├── scripts/              shared by both setups: sync-mods.py, DNS updater + systemd unit,
+│                         secret-filter.sh (keeps secrets in server.properties out of git)
 ├── tests/                tests/run.sh: checks for docker.sh, the backup hooks and sync-mods
 ├── docker/
 │   ├── compose.yaml      how every Docker server runs (one file for all of them)
@@ -130,7 +131,8 @@ Minecraft-Servers/
 Run these after changing any of the scripts:
 
 ```sh
-tests/run.sh          # fast: shellcheck, backup pruning and hooks, docker.sh checks, sync-mods (seconds)
+tests/run.sh          # fast: backup pruning and hooks, docker.sh checks, the secrets filter,
+                      # sync-mods (seconds)
 tests/run.sh --e2e    # also runs a throwaway copy of emily-server through up, backup,
                       # restart, down and crashes (a few minutes; emily-server must be stopped)
 ```
@@ -144,6 +146,14 @@ Only small text files you edit by hand: the scripts, each server's
 `whitelist.json` and `ops.json`. Worlds, backups, logs, crash reports, jars and
 libraries are ignored; `.gitignore` lists what is allowed rather than what is
 excluded, so nothing large gets added by accident.
+
+Every `server.properties` is stored with its passwords and secrets blank
+(`rcon.password`, `management-server-secret`,
+`management-server-tls-keystore-password`); the files on disk keep their values. A git
+filter does this (see `.gitattributes` and `scripts/secret-filter.sh`). `docker.sh` sets
+it up on its first run; in a fresh clone you can also run
+`scripts/secret-filter.sh --install`. Until then, pre-commit refuses to commit a
+`server.properties` that still has a secret in it.
 
 `mods.txt` records which mod files a server has, so mod updates show up in the
 history. `sync-mods.py` rewrites it after every sync.
