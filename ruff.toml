@@ -1,0 +1,35 @@
+# Ruff settings (from ~/.config/pre-commit/template/).
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = [
+  "E",    # pycodestyle errors
+  "W",    # pycodestyle warnings
+  "F",    # Pyflakes: unused names, undefined names, ...
+  "I",    # import sorting
+  "N",    # naming
+  "UP",   # newer Python syntax
+  "B",    # likely bugs (bugbear)
+  "A",    # shadowing builtins
+  "C4",   # comprehensions
+  "SIM",  # simplifications
+  "RET",  # return statements
+  "PIE",  # misc. lints
+  "PERF", # performance
+  "PTH",  # pathlib over os.path
+  "PL",   # Pylint
+  "RUF",  # Ruff's own
+]
+ignore = [
+  # Too many returns / branches / arguments / statements.
+  "PLR0911",
+  "PLR0912",
+  "PLR0913",
+  "PLR0915",
+  "PLR2004", # magic values in comparisons
+]
+
+[lint.per-file-ignores]
+# Tests use plain asserts and long literal tables.
+"**/test_*.py" = ["PLR0904", "E501"]

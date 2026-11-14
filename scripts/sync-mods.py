@@ -35,11 +35,12 @@ DIFF_LINE_LIMIT = 40
 
 # --------------------------------------------------------------------------- config
 
+
 @dataclass
 class Server:
     name: str
     root: Path
-    backup_dir: Path      # where the mods/config backup goes before a sync
+    backup_dir: Path  # where the mods/config backup goes before a sync
     jar_file: str
     profile_dir: Path | None
     exclude: list[str]
@@ -58,16 +59,18 @@ def read_server_conf(conf: Path) -> Server | None:
         'printf "%s\\0" "${#SYNC_EXCLUDE[@]}" ${SYNC_EXCLUDE[@]+"${SYNC_EXCLUDE[@]}"}; '
         'printf "%s\\0" "${#SYNC_CONFIG_SKIP[@]}" ${SYNC_CONFIG_SKIP[@]+"${SYNC_CONFIG_SKIP[@]}"}'
     )
-    result = subprocess.run(["bash", "-c", script, "bash", str(conf)], capture_output=True)
+    result = subprocess.run(
+        ["bash", "-c", script, "bash", str(conf)], capture_output=True, check=False
+    )
     if result.returncode != 0:
         return None
     fields = result.stdout.decode().split("\0")
     try:
         name, jar_file, profile = fields[0:3]
         n_exclude = int(fields[3])
-        exclude = fields[4:4 + n_exclude]
+        exclude = fields[4 : 4 + n_exclude]
         n_skip = int(fields[4 + n_exclude])
-        config_skip = fields[5 + n_exclude:5 + n_exclude + n_skip]
+        config_skip = fields[5 + n_exclude : 5 + n_exclude + n_skip]
     except (ValueError, IndexError):
         return None
     if not name:
@@ -94,28 +97,32 @@ def find_servers() -> dict[str, Server]:
     servers: dict[str, Server] = {}
     # Legacy run.sh servers (legacy/<folder>/server.conf) and Docker servers
     # (docker/servers/<name>/server.conf).
-    confs = (sorted(REPO_ROOT.glob("legacy/*/server.conf"))
-             + sorted(REPO_ROOT.glob("docker/servers/*/server.conf")))
+    confs = sorted(REPO_ROOT.glob("legacy/*/server.conf")) + sorted(
+        REPO_ROOT.glob("docker/servers/*/server.conf")
+    )
     for conf in confs:
         server = read_server_conf(conf)
         if not server:
             continue
         if server.name in servers:
-            sys.exit(f"Two servers are named {server.name!r}: {servers[server.name].root} and "
-                     f"{server.root}. Give each server.conf a different NAME=.")
+            sys.exit(
+                f"Two servers are named {server.name!r}: {servers[server.name].root} and "
+                f"{server.root}. Give each server.conf a different NAME=."
+            )
         servers[server.name] = server
     return servers
 
 
 # --------------------------------------------------------------------- mod reading
 
+
 @dataclass
 class ModInfo:
     path: Path
-    rel: str              # path inside mods/, e.g. "1.7.10/CodeChickenLib.jar"
-    mod_id: str           # lower-case ID used to match profile and server copies
-    version: str | None   # None when the file doesn't say
-    loader: str           # fabric, forge-legacy, neoforge, forge, unknown
+    rel: str  # path inside mods/, e.g. "1.7.10/CodeChickenLib.jar"
+    mod_id: str  # lower-case ID used to match profile and server copies
+    version: str | None  # None when the file doesn't say
+    loader: str  # fabric, forge-legacy, neoforge, forge, unknown
     client_only: bool
 
 
@@ -163,29 +170,54 @@ def read_mod(path: Path, rel: str) -> ModInfo:
             if "fabric.mod.json" in names:
                 data = _load_json(read("fabric.mod.json"))
                 if data.get("id"):
-                    return ModInfo(path, rel, str(data["id"]).lower(),
-                                   _real_version(str(data.get("version", "")), manifest),
-                                   "fabric", data.get("environment") == "client")
+                    return ModInfo(
+                        path,
+                        rel,
+                        str(data["id"]).lower(),
+                        _real_version(str(data.get("version", "")), manifest),
+                        "fabric",
+                        data.get("environment") == "client",
+                    )
 
-            for toml_name, loader in (("META-INF/neoforge.mods.toml", "neoforge"),
-                                      ("META-INF/mods.toml", "forge")):
+            for toml_name, loader in (
+                ("META-INF/neoforge.mods.toml", "neoforge"),
+                ("META-INF/mods.toml", "forge"),
+            ):
                 if toml_name in names:
                     first = (tomllib.loads(read(toml_name)).get("mods") or [{}])[0]
                     if first.get("modId"):
-                        return ModInfo(path, rel, str(first["modId"]).lower(),
-                                       _real_version(first.get("version"), manifest),
-                                       loader, False)
+                        return ModInfo(
+                            path,
+                            rel,
+                            str(first["modId"]).lower(),
+                            _real_version(first.get("version"), manifest),
+                            loader,
+                            False,
+                        )
 
             if "mcmod.info" in names:
                 data = _load_json(read("mcmod.info"))
                 entries = data.get("modList", []) if isinstance(data, dict) else data
                 first = entries[0] if entries else {}
                 if first.get("modid"):
-                    return ModInfo(path, rel, str(first["modid"]).lower(),
-                                   _real_version(first.get("version"), manifest),
-                                   "forge-legacy", False)
-    except (zipfile.BadZipFile, OSError, ValueError, tomllib.TOMLDecodeError, KeyError,
-            IndexError, AttributeError, TypeError):
+                    return ModInfo(
+                        path,
+                        rel,
+                        str(first["modid"]).lower(),
+                        _real_version(first.get("version"), manifest),
+                        "forge-legacy",
+                        False,
+                    )
+    except (
+        zipfile.BadZipFile,
+        OSError,
+        ValueError,
+        tomllib.TOMLDecodeError,
+        KeyError,
+        IndexError,
+        AttributeError,
+        TypeError,
+    ):
         pass
     return unknown
 
@@ -205,8 +237,10 @@ def mod_files(folder: Path) -> list[tuple[Path, str]]:
 
 def disabled_files(folder: Path) -> list[str]:
     """Mods the launcher has switched off (name ends in .disabled)."""
-    return sorted((p.relative_to(folder).as_posix() for p in folder.rglob("*.disabled")
-                   if p.is_file()), key=str.casefold)
+    return sorted(
+        (p.relative_to(folder).as_posix() for p in folder.rglob("*.disabled") if p.is_file()),
+        key=str.casefold,
+    )
 
 
 def read_mods(folder: Path) -> dict[str, ModInfo]:
@@ -255,7 +289,8 @@ def compare_versions(a: str | None, b: str | None) -> int | None:
 def _compare_keys(ka: list, kb: list) -> int | None:
     if not ka or not kb:
         return None
-    for x, y in zip(ka, kb):
+    # Different lengths are expected: the extra part is handled after the loop.
+    for x, y in zip(ka, kb, strict=False):
         if x == y:
             continue
         if x[0] != y[0] or type(x[1]) is not type(y[1]):
@@ -271,16 +306,17 @@ def _compare_keys(ka: list, kb: list) -> int | None:
 
 # --------------------------------------------------------------------------- plan
 
+
 @dataclass
 class ModChange:
-    kind: str                 # add, update, downgrade, replace
+    kind: str  # add, update, downgrade, replace
     new: ModInfo
     old: ModInfo | None = None
 
 
 @dataclass
 class ConfigChange:
-    kind: str                 # add, update
+    kind: str  # add, update
     rel: Path
     source: Path
     target: Path
@@ -304,13 +340,19 @@ def is_excluded(info: ModInfo, patterns: list[str]) -> bool:
     return any(p.lower() in h for p in patterns for h in haystacks)
 
 
-def plan_mods(server: Server, plan: Plan, profile_mods: dict[str, ModInfo],
-              server_mods: dict[str, ModInfo]) -> list[str]:
+def plan_mods(
+    server: Server, plan: Plan, profile_mods: dict[str, ModInfo], server_mods: dict[str, ModInfo]
+) -> list[str]:
     """Fill in the mod part of the plan; return the IDs the server will have."""
     kept_ids = []
     for key, new in profile_mods.items():
-        skip_list = (plan.client_only if new.client_only
-                     else plan.excluded if is_excluded(new, server.exclude) else None)
+        skip_list = (
+            plan.client_only
+            if new.client_only
+            else plan.excluded
+            if is_excluded(new, server.exclude)
+            else None
+        )
         if skip_list is not None:
             skip_list.append(new)
             if key in server_mods:  # never removed, but say it's there
@@ -344,26 +386,31 @@ def same_config(a: Path, b: Path) -> bool:
         lines_a, lines_b = a.read_bytes().splitlines(), b.read_bytes().splitlines()
     except OSError:
         return False
-    return ([l for l in lines_a if not _COMMENT.match(l)]
-            == [l for l in lines_b if not _COMMENT.match(l)])
+    return [line for line in lines_a if not _COMMENT.match(line)] == [
+        line for line in lines_b if not _COMMENT.match(line)
+    ]
 
 
 def _norm(text: str) -> str:
     return re.sub(r"[^a-z0-9]", "", text.lower())
 
 
-def plan_configs(server: Server, plan: Plan, kept_ids: list[str]) -> None:
+def plan_configs(server: Server, plan: Plan, kept_ids: list[str], profile_dir: Path) -> None:
     """Copy a profile config when the server already has it, or it belongs to a server mod."""
-    source_root = server.profile_dir / "config"
+    source_root = profile_dir / "config"
     target_root = server.root / "config"
     if not source_root.is_dir():
         return
     mod_names = {_norm(m) for m in kept_ids if len(_norm(m)) >= 3}
+
     def skipped(rel: Path) -> bool:
         """SYNC_CONFIG_SKIP entries are paths or wildcards; a folder skips all inside it."""
-        candidates = [rel.as_posix()] + [p.as_posix() for p in rel.parents if p != Path(".")]
-        return any(fnmatch.fnmatchcase(c.lower(), pattern.lower())
-                   for pattern in server.config_skip for c in candidates)
+        candidates = [rel.as_posix()] + [p.as_posix() for p in rel.parents if p != Path()]
+        return any(
+            fnmatch.fnmatchcase(c.lower(), pattern.lower())
+            for pattern in server.config_skip
+            for c in candidates
+        )
 
     for source in sorted(p for p in source_root.rglob("*") if p.is_file()):
         rel = source.relative_to(source_root)
@@ -384,15 +431,19 @@ def plan_configs(server: Server, plan: Plan, kept_ids: list[str]) -> None:
 
 
 def build_plan(server: Server) -> Plan:
-    plan = Plan([], [], [], [], [], [], [], disabled_files(server.profile_dir / "mods"), [])
-    profile_mods = read_mods(server.profile_dir / "mods")
+    profile_dir = server.profile_dir
+    if profile_dir is None:  # main() checks this first
+        raise ValueError(f"PROFILE_DIR is not set in the server.conf of {server.name}")
+    plan = Plan([], [], [], [], [], [], [], disabled_files(profile_dir / "mods"), [])
+    profile_mods = read_mods(profile_dir / "mods")
     server_mods = read_mods(server.root / "mods")
     kept_ids = plan_mods(server, plan, profile_mods, server_mods)
-    plan_configs(server, plan, kept_ids)
+    plan_configs(server, plan, kept_ids, profile_dir)
     return plan
 
 
 # ------------------------------------------------------------------------- output
+
 
 def _ver(info: ModInfo | None) -> str:
     return (info.version or "version unknown") if info else "-"
@@ -424,14 +475,26 @@ def print_plan(server: Server, plan: Plan) -> None:
         print()
 
     sections = [
-        ("Add", [c for c in plan.mod_changes if c.kind == "add"],
-         lambda c: f"{c.new.rel}  ({_ver(c.new)})"),
-        ("Update", [c for c in plan.mod_changes if c.kind == "update"],
-         lambda c: f"{c.new.mod_id}: {_ver(c.old)} -> {_ver(c.new)}  ({c.new.rel})"),
-        ("Downgrade", downgrades,
-         lambda c: f"{c.new.mod_id}: {_ver(c.old)} -> {_ver(c.new)}  ({c.new.rel})"),
-        ("Replace (same version, different file)", [c for c in plan.mod_changes if c.kind == "replace"],
-         lambda c: f"{c.old.rel} -> {c.new.rel}"),
+        (
+            "Add",
+            [c for c in plan.mod_changes if c.kind == "add"],
+            lambda c: f"{c.new.rel}  ({_ver(c.new)})",
+        ),
+        (
+            "Update",
+            [c for c in plan.mod_changes if c.kind == "update"],
+            lambda c: f"{c.new.mod_id}: {_ver(c.old)} -> {_ver(c.new)}  ({c.new.rel})",
+        ),
+        (
+            "Downgrade",
+            downgrades,
+            lambda c: f"{c.new.mod_id}: {_ver(c.old)} -> {_ver(c.new)}  ({c.new.rel})",
+        ),
+        (
+            "Replace (same version, different file)",
+            [c for c in plan.mod_changes if c.kind == "replace"],
+            lambda c: f"{c.old.rel} -> {c.new.rel}",
+        ),
     ]
     for title, items, fmt in sections:
         if items:
@@ -440,21 +503,26 @@ def print_plan(server: Server, plan: Plan) -> None:
                 print(f"  {fmt(item)}")
             print()
 
-    for title, items in (("Kept, only on the server (not touched)", plan.server_only),
-                         ("Skipped, excluded in server.conf", plan.excluded),
-                         ("Skipped, client-only", plan.client_only)):
+    for title, items in (
+        ("Kept, only on the server (not touched)", plan.server_only),
+        ("Skipped, excluded in server.conf", plan.excluded),
+        ("Skipped, client-only", plan.client_only),
+    ):
         if items:
             names = ", ".join(sorted(i.mod_id for i in items))
             print(f"{title} ({len(items)}): {names}\n")
     if plan.skipped_but_installed:
-        print("!! Installed on the server although client-only or excluded (left in place; remove "
-              "by hand if unwanted):")
+        print(
+            "!! Installed on the server although client-only or excluded (left in place; remove "
+            "by hand if unwanted):"
+        )
         for info in plan.skipped_but_installed:
             print(f"!!   {info.rel}")
         print()
     if plan.disabled:
-        print(f"Skipped, disabled in the profile ({len(plan.disabled)}): "
-              f"{', '.join(plan.disabled)}\n")
+        print(
+            f"Skipped, disabled in the profile ({len(plan.disabled)}): {', '.join(plan.disabled)}\n"
+        )
     print(f"Unchanged mods: {len(plan.unchanged)}\n")
 
     if plan.config_changes:
@@ -475,6 +543,7 @@ def print_plan(server: Server, plan: Plan) -> None:
 
 # -------------------------------------------------------------------------- apply
 
+
 def server_is_running(server: Server) -> str | None:
     """Return a description if the server is running natively or in Docker."""
     root = server.root.resolve()
@@ -490,13 +559,21 @@ def server_is_running(server: Server) -> str | None:
             continue
 
     if shutil.which("docker"):
-        result = subprocess.run(["docker", "ps", "-q"], capture_output=True, text=True)
+        result = subprocess.run(["docker", "ps", "-q"], capture_output=True, text=True, check=False)
         ids = result.stdout.split()
         if result.returncode == 0 and ids:
             inspect = subprocess.run(
-                ["docker", "inspect", "--format",
-                 "{{.Name}} {{range .Mounts}}{{.Source}}|{{end}}", *ids],
-                capture_output=True, text=True)
+                [
+                    "docker",
+                    "inspect",
+                    "--format",
+                    "{{.Name}} {{range .Mounts}}{{.Source}}|{{end}}",
+                    *ids,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
             for line in inspect.stdout.splitlines():
                 name, _, mounts = line.partition(" ")
                 if any(Path(m).resolve() == root for m in mounts.split("|") if m):
@@ -540,6 +617,7 @@ def write_mods_txt(root: Path) -> None:
 
 # --------------------------------------------------------------------------- main
 
+
 def main() -> int:
     servers = find_servers()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -573,8 +651,10 @@ def main() -> int:
 
     running = server_is_running(server)
     if running:
-        print(f"Refusing to sync: {server.name} is running ({running}). Stop it first.",
-              file=sys.stderr)
+        print(
+            f"Refusing to sync: {server.name} is running ({running}). Stop it first.",
+            file=sys.stderr,
+        )
         return 1
 
     try:
@@ -588,8 +668,10 @@ def main() -> int:
     backup = backup_current(server)
     print(f"Backed up current mods and config to {backup}")
     apply_plan(server, plan)
-    print(f"Done: {len(plan.mod_changes)} mod change(s), {len(plan.config_changes)} config "
-          f"change(s). mods.txt updated.")
+    print(
+        f"Done: {len(plan.mod_changes)} mod change(s), {len(plan.config_changes)} config "
+        f"change(s). mods.txt updated."
+    )
     return 0
 
 

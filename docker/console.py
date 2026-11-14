@@ -15,43 +15,48 @@ arrow-key history. Exit codes tell docker.sh what happened:
     12  the server crashed and Docker is not restarting it
 """
 
+import contextlib
 import os
 import signal
 import subprocess
 import sys
 import threading
-import time
 
-try:
+with contextlib.suppress(ImportError):
     import readline  # noqa: F401  (gives input() line editing and history)
-except ImportError:
-    pass
 
 DETACHED, SHUTDOWN, STOPPED, CRASHED = 0, 10, 11, 12
 POLL_SECONDS = 2
 
 
-class ServerGone(Exception):
+# These two are signals between threads, not errors (like KeyboardInterrupt).
+class ServerGone(Exception):  # noqa: N818
     """Raised in the main thread when the monitor sees the server has stopped."""
 
 
-class Detach(Exception):
+class Detach(Exception):  # noqa: N818
     """Raised in the main thread when the terminal goes away (SIGHUP)."""
 
 
 def say(text: str) -> None:
-    try:
+    with contextlib.suppress(OSError):  # the terminal is gone
         print(f"\n*** {text}", flush=True)
-    except OSError:
-        pass  # the terminal is gone
 
 
 def inspect(cid: str) -> tuple[str, int, int, str] | None:
     """Container (status, exit code, restart count, started-at), or None if it is gone."""
     result = subprocess.run(
-        ["docker", "inspect", "-f",
-         "{{.State.Status}} {{.State.ExitCode}} {{.RestartCount}} {{.State.StartedAt}}", cid],
-        capture_output=True, text=True)
+        [
+            "docker",
+            "inspect",
+            "-f",
+            "{{.State.Status}} {{.State.ExitCode}} {{.RestartCount}} {{.State.StartedAt}}",
+            cid,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     if result.returncode != 0:
         return None
     status, code, restarts, started = result.stdout.split()
@@ -79,9 +84,15 @@ def follow_log(cid: str, since: str | None, tail: int | None) -> subprocess.Pope
     if tail is not None:
         args += ["--tail", str(tail)]
     # Its own session, so Ctrl+C in this terminal doesn't stop the log.
-    process = subprocess.Popen(args + [cid], start_new_session=True, stdin=subprocess.DEVNULL,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                               text=True, errors="replace")
+    process = subprocess.Popen(
+        [*args, cid],
+        start_new_session=True,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        errors="replace",
+    )
     threading.Thread(target=show_log, args=(process.stdout,), daemon=True).start()
     return process
 
@@ -115,8 +126,9 @@ class Monitor(threading.Thread):
                 if last_restarts is not None and restarts > last_restarts:
                     say(f"The server crashed and Docker restarted it (restart {restarts}).")
                 new_start = started != last_started
-                if self.logs != "none" and (new_start or self.follower is None
-                                            or self.follower.poll() is not None):
+                if self.logs != "none" and (
+                    new_start or self.follower is None or self.follower.poll() is not None
+                ):
                     self.stop_log()
                     if last_started is None and self.logs == "tail":
                         self.follower = follow_log(self.cid, None, 30)
@@ -150,8 +162,13 @@ def raise_detach(*_args: object) -> None:
 
 
 def run_command(cid: str, command: str) -> None:
-    result = subprocess.run(["docker", "exec", cid, "rcon-cli", command],
-                            capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    result = subprocess.run(
+        ["docker", "exec", cid, "rcon-cli", command],
+        check=False,
+        capture_output=True,
+        text=True,
+        stdin=subprocess.DEVNULL,
+    )
     reply = (result.stdout + result.stderr).strip()
     if reply:
         print(reply, flush=True)
@@ -167,8 +184,11 @@ def main() -> int:
     signal.signal(signal.SIGHUP, raise_detach)
     monitor = Monitor(cid, logs)
     monitor.start()
-    print("Type server commands here (no /). Ctrl+C or \"stop\": shut down with a backup. "
-          "Ctrl+D: detach (the server keeps running).", flush=True)
+    print(
+        'Type server commands here (no /). Ctrl+C or "stop": shut down with a backup. '
+        "Ctrl+D: detach (the server keeps running).",
+        flush=True,
+    )
     try:
         while True:
             try:

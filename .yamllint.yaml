@@ -1,0 +1,15 @@
+# yamllint settings (from ~/.config/pre-commit/template/).
+extends: default
+rules:
+  line-length:
+    max: 100
+    # A key with one long unbreakable value (an image pinned by digest, a URL) is fine.
+    allow-non-breakable-inline-mappings: true
+  # A leading "---" is optional (Compose files and most configs don't use it).
+  document-start: disable
+  # GitHub Actions uses "on:" as a key.
+  truthy:
+    check-keys: false
+  # Match prettier, which puts one space before an inline comment.
+  comments:
+    min-spaces-from-content: 1

@@ -1,0 +1,10 @@
+// markdownlint settings (from ~/.config/pre-commit/template/).
+{
+  "config": {
+    "default": true,
+    // Prose lines up to 100 characters; tables and code blocks can be wider.
+    "MD013": { "line_length": 100, "tables": false, "code_blocks": false },
+    // Repeated headings are fine in different sections (e.g. "Options").
+    "MD024": { "siblings_only": true }
+  }
+}

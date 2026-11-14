@@ -45,13 +45,13 @@ mkdir -p "$server"
 cp -a --reflink=auto -- "$source_server/data" "$server/" || exit 1
 rm -rf -- "$server/data/logs" "$server/data/crash-reports"
 sed -e "s/^NAME=.*/NAME=$name/" -e 's/^GAME_PORT=.*/GAME_PORT=25596/' \
-    -e 's/^RCON_PORT=.*/RCON_PORT=25597/' "$source_server/server.conf" > "$server/server.conf"
+    -e 's/^RCON_PORT=.*/RCON_PORT=25597/' "$source_server/server.conf" >"$server/server.conf"
 
 # ds ARGS...: run the copy's docker.sh for e2e-test; sets out and rc, keeps a log.
 ds() {
     out=$("$work/docker.sh" "$name" "$@" 2>&1)
     rc=$?
-    printf '\n$ docker.sh %s %s  (exit %s)\n%s\n' "$name" "$*" "$rc" "$out" >> "$log"
+    printf '\n$ docker.sh %s %s  (exit %s)\n%s\n' "$name" "$*" "$rc" "$out" >>"$log"
 }
 mc_id() { docker compose -p "$name" ps -aq mc; }
 count() { find "$backups" -name "*-$1.tar.gz" 2>/dev/null | wc -l; }
@@ -59,7 +59,7 @@ count() { find "$backups" -name "*-$1.tar.gz" 2>/dev/null | wc -l; }
 # wait_up: until the server answers commands (up to 3 minutes).
 wait_up() {
     local i
-    for (( i = 0; i < 90; i++ )); do
+    for ((i = 0; i < 90; i++)); do
         "$work/docker.sh" "$name" console list 2>/dev/null | grep -q 'There are' && return 0
         sleep 2
     done
@@ -68,7 +68,7 @@ wait_up() {
 # wait_exited: until the mc container has stopped (up to 1 minute).
 wait_exited() {
     local i
-    for (( i = 0; i < 30; i++ )); do
+    for ((i = 0; i < 30; i++)); do
         [[ "$(docker inspect -f '{{.State.Running}}' "$(mc_id)" 2>/dev/null)" == false ]] && return 0
         sleep 2
     done
@@ -92,18 +92,18 @@ check "makes one -manual backup" eq "$(count manual)" 1
 manual=$(find "$backups" -name '*-manual.tar.gz')
 contents=$(tar -tzf "$manual" 2>/dev/null)
 check "the live backup has the world" contains "$contents" "level.dat"
-check "the live backup leaves out Distant Horizons" test "$(grep -c 'DistantHorizons.sqlite' <<< "$contents")" -eq 0
+check "the live backup leaves out Distant Horizons" test "$(grep -c 'DistantHorizons.sqlite' <<<"$contents")" -eq 0
 
 ds restart --now
 check "restart succeeds" eq "$rc" 0
 check "restart makes a -shutdown backup" eq "$(count shutdown)" 1
 shutdown_backup=$(find "$backups" -name '*-shutdown.tar.gz')
-check "the shutdown backup includes Distant Horizons" grep -q 'DistantHorizons.sqlite' <<< "$(tar -tzf "$shutdown_backup")"
+check "the shutdown backup includes Distant Horizons" grep -q 'DistantHorizons.sqlite' <<<"$(tar -tzf "$shutdown_backup")"
 check "the server is back after restart" wait_up
 
 ds down
 check "down succeeds" eq "$rc" 0
-check "nobody online: no warning wait" eq "$(grep -c 'warned them' <<< "$out")" 0
+check "nobody online: no warning wait" eq "$(grep -c 'warned them' <<<"$out")" 0
 check "down makes a second -shutdown backup" eq "$(count shutdown)" 2
 check "down removes the containers" test -z "$(mc_id)"
 
@@ -128,7 +128,7 @@ check "status counts the crash restart" contains "$out" "1 restart(s) after cras
 ds down --now
 check "down --now after a recovered crash backs up" eq "$(count shutdown)" 3
 
-if (( fails )); then
+if ((fails)); then
     printf '\nLog of every docker.sh call:\n'
     cat -- "$log"
 fi

@@ -49,5 +49,5 @@ copy_tooling() {
 
 finish() {
     printf '%s: %d passed, %d failed\n' "$(basename -- "$0")" "$passes" "$fails"
-    (( fails == 0 ))
+    ((fails == 0))
 }

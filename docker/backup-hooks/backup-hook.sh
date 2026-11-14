@@ -30,50 +30,50 @@ say() {
 if [[ $kind == manual ]]; then label=Manual; else label=Daily; fi
 
 case "${1:-}" in
-start)
-    touch "$marker"
-    say yellow "$label backup starting, you may notice a short lag."
-    ;;
-done)
-    status=${2:-1}
-    backup_log=${3:-}
-    # The archive this run wrote: the newest not-yet-renamed one (name ends in the time)
-    # created since "start".
-    archive=$(find "$dest" -maxdepth 1 -name '*-[0-9][0-9][0-9][0-9][0-9][0-9].tar.gz' \
-        -newer "$marker" 2>/dev/null | sort | tail -n 1)
-    rm -f "$marker"
+    start)
+        touch "$marker"
+        say yellow "$label backup starting, you may notice a short lag."
+        ;;
+    done)
+        status=${2:-1}
+        backup_log=${3:-}
+        # The archive this run wrote: the newest not-yet-renamed one (name ends in the time)
+        # created since "start".
+        archive=$(find "$dest" -maxdepth 1 -name '*-[0-9][0-9][0-9][0-9][0-9][0-9].tar.gz' \
+            -newer "$marker" 2>/dev/null | sort | tail -n 1)
+        rm -f "$marker"
 
-    # tar exit 1 = "file changed as we read it": the archive is complete and usable, and
-    # the world itself was frozen by save-off, so it counts as a good backup.
-    if [[ $status == 1 && -n "$archive" ]]; then
-        log "the 'Backup failed with exit code 1' above is only tar warning that files" \
-            "changed while copying; the archive is kept as a good backup. Changed files:"
-        [[ -f "$backup_log" ]] && grep -i 'changed as we read' "$backup_log" | sed 's/^/  /'
-        status=0
-    fi
-
-    if [[ $status != 0 || -z "$archive" ]]; then
-        log "backup failed (exit $status); see the tar output above"
-        if [[ -n "$archive" ]]; then
-            rm -f -- "$archive" && log "deleted the incomplete archive $archive"
+        # tar exit 1 = "file changed as we read it": the archive is complete and usable, and
+        # the world itself was frozen by save-off, so it counts as a good backup.
+        if [[ $status == 1 && -n "$archive" ]]; then
+            log "the 'Backup failed with exit code 1' above is only tar warning that files" \
+                "changed while copying; the archive is kept as a good backup. Changed files:"
+            [[ -f "$backup_log" ]] && grep -i 'changed as we read' "$backup_log" | sed 's/^/  /'
+            status=0
         fi
-        say red "$label backup FAILED. The world was not backed up. Tell Louis."
-        exit 0
-    fi
 
-    named="${archive%.tar.gz}-$kind.tar.gz"
-    if mv -- "$archive" "$named"; then
-        archive=$named
-        log "backup saved: $archive"
-        "$hooks_dir/prune.sh" "$dest" "$keep" "$kind" || log "pruning old $kind backups failed"
-    else
-        log "backup saved: $archive (could not rename it to $named, so it is never pruned)"
-    fi
-    size=$(du -h -- "$archive" 2>/dev/null | cut -f1)
-    say green "$label backup finished (${size:-?}B)."
-    ;;
-*)
-    log "unknown hook call: $*"
-    ;;
+        if [[ $status != 0 || -z "$archive" ]]; then
+            log "backup failed (exit $status); see the tar output above"
+            if [[ -n "$archive" ]]; then
+                rm -f -- "$archive" && log "deleted the incomplete archive $archive"
+            fi
+            say red "$label backup FAILED. The world was not backed up. Tell Louis."
+            exit 0
+        fi
+
+        named="${archive%.tar.gz}-$kind.tar.gz"
+        if mv -- "$archive" "$named"; then
+            archive=$named
+            log "backup saved: $archive"
+            "$hooks_dir/prune.sh" "$dest" "$keep" "$kind" || log "pruning old $kind backups failed"
+        else
+            log "backup saved: $archive (could not rename it to $named, so it is never pruned)"
+        fi
+        size=$(du -h -- "$archive" 2>/dev/null | cut -f1)
+        say green "$label backup finished (${size:-?}B)."
+        ;;
+    *)
+        log "unknown hook call: $*"
+        ;;
 esac
 exit 0

@@ -96,7 +96,7 @@ if [[ ! -f "$rcon_env" ]]; then
     if [[ ! -d "$(dirname -- "$rcon_env")" ]]; then
         mkdir -p -- "$(dirname -- "$rcon_env")" && chmod 700 -- "$(dirname -- "$rcon_env")" || exit 1
     fi
-    (umask 077 && printf 'RCON_PASSWORD=%s\n' "$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')" > "$rcon_env") || exit 1
+    (umask 077 && printf 'RCON_PASSWORD=%s\n' "$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')" >"$rcon_env") || exit 1
     printf 'Made an RCON password for %s in %s\n' "$NAME" "$rcon_env"
 fi
 
@@ -193,7 +193,7 @@ shutdown() {
     if ! compose exec -T mc mc-health >/dev/null 2>&1; then
         printf 'The server is still starting; waiting for it to finish loading before stopping it...\n'
         local tries
-        for (( tries = 0; tries < 100; tries++ )); do
+        for ((tries = 0; tries < 100; tries++)); do
             compose exec -T mc mc-health >/dev/null 2>&1 && break
             running_id >/dev/null || break
             sleep 3
@@ -203,7 +203,7 @@ shutdown() {
     # The live excludes minus Distant Horizons: nothing will be running, so its databases
     # are safe to copy.
     local tar_excludes=() patterns pattern
-    IFS=',' read -ra patterns <<< "${excludes:-}"
+    IFS=',' read -ra patterns <<<"${excludes:-}"
     for pattern in "${patterns[@]}"; do
         [[ -n "$pattern" && "$pattern" != DistantHorizons* ]] && tar_excludes+=("--exclude=$pattern")
     done
@@ -254,11 +254,16 @@ shutdown() {
     fi
 
     status=$(docker inspect -f '{{.State.ExitCode}}' "$id")
+    # Any crash report written since the server started (none if it never wrote one).
+    local crash_dir="$data_dir/crash-reports" crash_check_failed=false
+    if [[ -d "$crash_dir" ]]; then
+        crash_report=$(find "$crash_dir" -type f -newermt "$started_at" -print -quit) \
+            || crash_check_failed=true
+    fi
     if [[ "$status" != 0 ]]; then
         printf 'Server exited with code %s, not a clean stop. No backup made.\n' "$status" >&2
         clean=false
-    elif [[ -d "$data_dir/crash-reports" ]] && ! crash_report=$(find "$data_dir/crash-reports" \
-            -type f -newermt "$started_at" -print -quit); then
+    elif [[ "$crash_check_failed" == true ]]; then
         printf 'Could not check for crash reports, so no backup made.\n' >&2
         clean=false
     elif [[ -n "$crash_report" ]]; then
@@ -340,7 +345,7 @@ attach_console() {
                 printf '\n'
                 shutdown down false false
                 rc=$?
-                (( rc == 2 )) || return "$rc"
+                ((rc == 2)) || return "$rc"
                 # Cancelled: back to the console, showing only recent log lines.
                 [[ "$logs" == all ]] && logs='tail'
                 ;;
@@ -362,111 +367,120 @@ attach_console() {
 }
 
 case "$action" in
-up)
-    detach=false
-    for opt in "$@"; do
-        case "$opt" in
-            -d|--detach) detach=true ;;
-            --no-restart) export AUTO_RESTART=no ;;
-            *) bad_option "$opt" ;;
-        esac
-    done
-    if running_id >/dev/null; then
-        printf 'Server %s is already running.\n' "$name"
-        [[ -v AUTO_RESTART ]] && printf '(--no-restart only applies when starting it.)\n'
-        [[ "$detach" == true ]] && exit 0
+    up)
+        detach=false
+        for opt in "$@"; do
+            case "$opt" in
+                -d | --detach) detach=true ;;
+                --no-restart) export AUTO_RESTART=no ;;
+                *) bad_option "$opt" ;;
+            esac
+        done
+        if running_id >/dev/null; then
+            printf 'Server %s is already running.\n' "$name"
+            [[ -v AUTO_RESTART ]] && printf '(--no-restart only applies when starting it.)\n'
+            [[ "$detach" == true ]] && exit 0
+            attach_console tail
+            exit $?
+        fi
+        compose up -d || exit 1
+        if [[ "$detach" == true ]]; then
+            printf 'Started in the background: ./docker.sh %s attach to watch it.\n' "$name"
+            exit 0
+        fi
+        attach_console all
+        exit $?
+        ;;
+    down | restart)
+        now=false
+        no_backup=false
+        for opt in "$@"; do
+            case "$opt" in
+                --now) now=true ;;
+                --no-backup)
+                    [[ "$action" == down ]] || bad_option "$opt"
+                    no_backup=true
+                    ;;
+                *) bad_option "$opt" ;;
+            esac
+        done
+        shutdown "$action" "$now" "$no_backup"
+        rc=$?
+        ((rc == 2)) && rc=0
+        exit "$rc"
+        ;;
+    backup)
+        (($# == 0)) || bad_option "$1"
+        running_id >/dev/null || {
+            printf 'Error: server %s is not running.\n' "$name" >&2
+            exit 1
+        }
+        read_config
+        # The backup takes the lock itself; wait for a running one first, because its
+        # readiness check turns saving back on, which would disturb a copy in progress.
+        if ! flock -n "$lock" true; then
+            printf 'A live backup is running; waiting for it to finish...\n'
+            flock "$lock" true
+        fi
+        printf 'Making a live backup of %s into %s...\n' "$name" "$backup_dir"
+        compose exec -T -e BACKUP_KIND=manual backups backup now
+        exit $?
+        ;;
+    logs)
+        (($# == 0)) || bad_option "$1"
+        compose logs -f --tail 100 --no-log-prefix mc
+        ;;
+    console)
+        if (($# == 0)); then
+            attach_console none
+            exit $?
+        fi
+        running_id >/dev/null || {
+            printf 'Error: server %s is not running.\n' "$name" >&2
+            exit 1
+        }
+        command="$*"
+        command=${command#/}
+        if [[ "${command,,}" == stop ]]; then
+            shutdown down false false
+            rc=$?
+            ((rc == 2)) && rc=0
+            exit "$rc"
+        fi
+        compose exec -T mc rcon-cli "$command"
+        exit $?
+        ;;
+    attach)
+        (($# == 0)) || bad_option "$1"
         attach_console tail
         exit $?
-    fi
-    compose up -d || exit 1
-    if [[ "$detach" == true ]]; then
-        printf 'Started in the background: ./docker.sh %s attach to watch it.\n' "$name"
-        exit 0
-    fi
-    attach_console all
-    exit $?
-    ;;
-down|restart)
-    now=false
-    no_backup=false
-    for opt in "$@"; do
-        case "$opt" in
-            --now) now=true ;;
-            --no-backup) [[ "$action" == down ]] || bad_option "$opt"; no_backup=true ;;
-            *) bad_option "$opt" ;;
-        esac
-    done
-    shutdown "$action" "$now" "$no_backup"
-    rc=$?
-    (( rc == 2 )) && rc=0
-    exit "$rc"
-    ;;
-backup)
-    (( $# == 0 )) || bad_option "$1"
-    running_id >/dev/null || { printf 'Error: server %s is not running.\n' "$name" >&2; exit 1; }
-    read_config
-    # The backup takes the lock itself; wait for a running one first, because its
-    # readiness check turns saving back on, which would disturb a copy in progress.
-    if ! flock -n "$lock" true; then
-        printf 'A live backup is running; waiting for it to finish...\n'
-        flock "$lock" true
-    fi
-    printf 'Making a live backup of %s into %s...\n' "$name" "$backup_dir"
-    compose exec -T -e BACKUP_KIND=manual backups backup now
-    exit $?
-    ;;
-logs)
-    (( $# == 0 )) || bad_option "$1"
-    compose logs -f --tail 100 --no-log-prefix mc
-    ;;
-console)
-    if (( $# == 0 )); then
-        attach_console none
-        exit $?
-    fi
-    running_id >/dev/null || { printf 'Error: server %s is not running.\n' "$name" >&2; exit 1; }
-    command="$*"
-    command=${command#/}
-    if [[ "${command,,}" == stop ]]; then
-        shutdown down false false
-        rc=$?
-        (( rc == 2 )) && rc=0
-        exit "$rc"
-    fi
-    compose exec -T mc rcon-cli "$command"
-    exit $?
-    ;;
-attach)
-    (( $# == 0 )) || bad_option "$1"
-    attach_console tail
-    exit $?
-    ;;
-sync)
-    for opt in "$@"; do [[ "$opt" == --dry-run ]] || bad_option "$opt"; done
-    exec python3 -I "$repo_root/scripts/sync-mods.py" "$NAME" "$@"
-    ;;
-status)
-    (( $# == 0 )) || bad_option "$1"
-    read_config
-    if id=$(running_id); then
-        printf '%s: running since %s, %s restart(s) after crashes\n' "$name" \
-            "$(date -d "$(docker inspect -f '{{.State.StartedAt}}' "$id")" '+%Y-%m-%d %H:%M')" \
-            "$(docker inspect -f '{{.RestartCount}}' "$id")"
-        printf 'Players online: %s\n' "$(players_online || true)"
-    else
-        printf '%s: not running\n' "$name"
-    fi
-    shopt -s nullglob
-    for kind in auto manual shutdown; do
-        files=("$backup_dir"/*-"$kind".tar.gz)
-        if (( ${#files[@]} == 0 )); then
-            printf '%-9s backups: none\n' "$kind"
-            continue
+        ;;
+    sync)
+        for opt in "$@"; do [[ "$opt" == --dry-run ]] || bad_option "$opt"; done
+        exec python3 -I "$repo_root/scripts/sync-mods.py" "$NAME" "$@"
+        ;;
+    status)
+        (($# == 0)) || bad_option "$1"
+        read_config
+        if id=$(running_id); then
+            printf '%s: running since %s, %s restart(s) after crashes\n' "$name" \
+                "$(date -d "$(docker inspect -f '{{.State.StartedAt}}' "$id")" '+%Y-%m-%d %H:%M')" \
+                "$(docker inspect -f '{{.RestartCount}}' "$id")"
+            printf 'Players online: %s\n' "$(players_online || true)"
+        else
+            printf '%s: not running\n' "$name"
         fi
-        # shellcheck disable=SC2012 # backup names are ours: no spaces or newlines
-        newest=$(ls -t -- "${files[@]}" | head -n 1)
-        printf '%-9s backups: %2d, newest %s (%s)\n' "$kind" "${#files[@]}" \
-            "$(basename -- "$newest")" "$(du -h -- "$newest" | cut -f1)"
-    done
-    ;;
+        shopt -s nullglob
+        for kind in auto manual shutdown; do
+            files=("$backup_dir"/*-"$kind".tar.gz)
+            if ((${#files[@]} == 0)); then
+                printf '%-9s backups: none\n' "$kind"
+                continue
+            fi
+            # shellcheck disable=SC2012 # backup names are ours: no spaces or newlines
+            newest=$(ls -t -- "${files[@]}" | head -n 1)
+            printf '%-9s backups: %2d, newest %s (%s)\n' "$kind" "${#files[@]}" \
+                "$(basename -- "$newest")" "$(du -h -- "$newest" | cut -f1)"
+        done
+        ;;
 esac

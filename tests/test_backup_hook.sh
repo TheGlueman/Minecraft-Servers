@@ -7,7 +7,7 @@ hook="$repo_root/docker/backup-hooks/backup-hook.sh"
 
 mkdir -p "$tmp/bin" "$tmp/backups"
 chat="$tmp/chat.log"
-cat > "$tmp/bin/rcon-cli" <<EOF
+cat >"$tmp/bin/rcon-cli" <<EOF
 #!/usr/bin/env bash
 [[ -f "$tmp/rcon-broken" ]] && exit 1
 printf '%s\n' "\$*" >> "$chat"
@@ -20,17 +20,17 @@ dest=$DEST_DIR
 # One backup run: start, then mc-backup writes an archive, then done STATUS.
 # run_backup STATUS [write-archive: yes|no]
 run_backup() {
-    : > "$chat"
+    : >"$chat"
     "$hook" start >/dev/null
     if [[ "${2:-yes}" == yes ]]; then
         # Named like mc-backup's (a six-digit time), unique per run; strictly newer than
         # the marker, as a real archive is.
         runs=$((runs + 1))
         archive="$dest/srv-20260101-$(printf '%06d' "$runs").tar.gz"
-        echo data > "$archive"
-        touch -d "@$(( $(date +%s) + 2 ))" "$archive"
+        echo data >"$archive"
+        touch -d "@$(($(date +%s) + 2))" "$archive"
     fi
-    printf 'tar: world/region/r.0.0.mca: file changed as we read it\n' > "$tmp/backup.log"
+    printf 'tar: world/region/r.0.0.mca: file changed as we read it\n' >"$tmp/backup.log"
     out=$("$hook" "done" "$1" "$tmp/backup.log")
     rc=$?
 }

@@ -1,0 +1,130 @@
+# pre-commit checks, copied from ~/.config/pre-commit/template/ (keep in step with it).
+# Runs on every "git commit"; run them by hand with: pre-commit run --all-files
+#
+# The tools are the ones installed on this PC (pacman), not downloaded copies:
+#   sudo pacman -S pre-commit ruff ty shfmt shellcheck prettier markdownlint-cli2 yamllint \
+#       gitleaks typos taplo-cli
+#   paru -S hadolint-bin
+# Only pre-commit-hooks (the standard file checks) is downloaded, at the pinned commit.
+# Every tool fails on warnings too. Formatters fix the files and stop the commit: check the
+# changes, git add them and commit again.
+
+# Paths no hook touches, as a regex (per repo: generated, vendored or archived files).
+# legacy/ is the archived run.sh setup; docker/servers/*/data/ holds files Minecraft and
+# its mods write (configs, mods.txt, ops.json, ...).
+exclude: ^(legacy/|docker/servers/[^/]+/data/)
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: check-merge-conflict
+      - id: check-json
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  - repo: local
+    hooks:
+      # Secrets in what is being committed (staged changes only).
+      - id: gitleaks
+        name: gitleaks (secrets)
+        entry: gitleaks git --pre-commit --staged --redact --no-banner
+        language: system
+        pass_filenames: false
+
+      - id: typos
+        name: typos (spelling)
+        entry: typos --force-exclude
+        language: system
+        types: [text]
+
+      # Python
+      - id: ruff-format
+        name: ruff format
+        entry: ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-check
+        name: ruff check
+        entry: ruff check --fix --force-exclude
+        language: system
+        types_or: [python, pyi]
+      - id: ty
+        name: ty check
+        entry: ty check --error-on-warning
+        language: system
+        types_or: [python, pyi]
+
+      # Shell (shfmt flags win over an .editorconfig; drop them if the repo has one)
+      - id: shfmt
+        name: shfmt
+        entry: shfmt -w -i 4 -ci -bn
+        language: system
+        types_or: [bash, sh]
+      - id: shellcheck
+        name: shellcheck
+        entry: shellcheck -x -P SCRIPTDIR
+        language: system
+        types_or: [bash, sh]
+
+      # Markdown (prettier stays out of Markdown: markdownlint owns it)
+      - id: markdownlint
+        name: markdownlint
+        entry: markdownlint-cli2
+        language: system
+        types: [markdown]
+
+      # JSON, YAML, CSS, JS/TS, HTML
+      - id: prettier
+        name: prettier
+        entry: prettier --write --ignore-unknown
+        language: system
+        types_or: [json, yaml, css, scss, javascript, jsx, ts, tsx, html, vue]
+      - id: yamllint
+        name: yamllint
+        entry: yamllint --strict
+        language: system
+        types: [yaml]
+
+      # TOML
+      - id: taplo-format
+        name: taplo format
+        entry: taplo fmt
+        language: system
+        types: [toml]
+      - id: taplo-lint
+        name: taplo lint
+        entry: taplo lint --no-schema
+        language: system
+        types: [toml]
+
+      # Docker
+      - id: hadolint
+        name: hadolint
+        entry: hadolint
+        language: system
+        types: [dockerfile]
+      # (The template's compose-config hook is left out: docker/compose.yaml needs the
+      # variables docker.sh sets, so tests/test_docker_sh.sh validates it through docker.sh.)
+
+      # Java (Gradle projects): format with Spotless. Needs the Spotless plugin in
+      # build.gradle; Error Prone and the other checks run in ./gradlew build.
+      - id: spotless
+        name: spotless (Java)
+        entry: ./gradlew spotlessApply --quiet
+        language: system
+        types: [java]
+        pass_filenames: false
+
+      # This repo: the fast tests (about a second) whenever a script or the tooling changes.
+      - id: fast-tests
+        name: fast tests (tests/run.sh)
+        entry: tests/run.sh
+        language: system
+        pass_filenames: false
+        files: ^(docker\.sh|docker/|scripts/|tests/|ruff\.toml)

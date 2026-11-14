@@ -43,7 +43,7 @@ while true; do
             # "has not changed" means the record already holds this address.
             if response=$(curl --fail --silent --show-error --max-time 30 "$DNS_UPDATE_URL") \
                 && { [[ "$response" != ERROR* ]] || [[ "${response,,}" == *"has not changed"* ]]; }; then
-                printf '%s\n' "$current_ip" > "$state_file"
+                printf '%s\n' "$current_ip" >"$state_file"
                 printf '[%s] DNS update succeeded: %s\n' "$timestamp" "$response"
             else
                 printf '[%s] DNS update failed; will retry: %s\n' "$timestamp" "${response:-no response}" >&2

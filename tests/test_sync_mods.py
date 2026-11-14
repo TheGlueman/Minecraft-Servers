@@ -13,10 +13,14 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 _spec = importlib.util.spec_from_file_location("sync_mods", REPO_ROOT / "scripts" / "sync-mods.py")
-sync = importlib.util.module_from_spec(_spec)
+if _spec is None or _spec.loader is None:
+    raise ImportError(f"cannot load {REPO_ROOT / 'scripts' / 'sync-mods.py'}")
+# Loaded from a file path (its name has a dash), so type checkers can't see its contents.
+sync: Any = importlib.util.module_from_spec(_spec)
 sys.modules["sync_mods"] = sync  # dataclasses look the module up while it loads
 _spec.loader.exec_module(sync)
 
@@ -55,7 +59,7 @@ class CompareVersions(unittest.TestCase):
             ("1.0-beta", "1.0", -1),
             ("1.0-rc1", "1.0-beta2", 1),
             ("1.0-alpha", "1.0-beta", -1),
-            ("3.2a", "3.2", 1),            # a single letter is a patch, not an alpha
+            ("3.2a", "3.2", 1),  # a single letter is a patch, not an alpha
             ("0.7.7+fix2", "0.7.7+fix3", -1),
             ("1.1+mc26.2", "1.0+mc26.3", 1),  # the part before + decides first
         ]
@@ -72,36 +76,47 @@ class CompareVersions(unittest.TestCase):
 class ReadMod(TempDirTest):
     def test_fabric(self) -> None:
         info = sync.read_mod(fabric_jar(self.root / "a.jar", "Sodium", "0.6"), "a.jar")
-        self.assertEqual((info.mod_id, info.version, info.loader, info.client_only),
-                         ("sodium", "0.6", "fabric", False))
+        self.assertEqual(
+            (info.mod_id, info.version, info.loader, info.client_only),
+            ("sodium", "0.6", "fabric", False),
+        )
 
     def test_fabric_client_only(self) -> None:
         info = sync.read_mod(fabric_jar(self.root / "a.jar", "zoom", "1", client=True), "a.jar")
         self.assertTrue(info.client_only)
 
     def test_placeholder_version_falls_back_to_manifest(self) -> None:
-        jar = make_jar(self.root / "a.jar", {
-            "fabric.mod.json": json.dumps({"id": "x", "version": "${version}"}),
-            "META-INF/MANIFEST.MF": "Manifest-Version: 1.0\nImplementation-Version: 4.5.6\n",
-        })
+        jar = make_jar(
+            self.root / "a.jar",
+            {
+                "fabric.mod.json": json.dumps({"id": "x", "version": "${version}"}),
+                "META-INF/MANIFEST.MF": "Manifest-Version: 1.0\nImplementation-Version: 4.5.6\n",
+            },
+        )
         self.assertEqual(sync.read_mod(jar, "a.jar").version, "4.5.6")
 
     def test_forge_toml(self) -> None:
-        jar = make_jar(self.root / "f.jar", {
-            "META-INF/mods.toml": '[[mods]]\nmodId="Create"\nversion="6.0"\n'})
+        jar = make_jar(
+            self.root / "f.jar", {"META-INF/mods.toml": '[[mods]]\nmodId="Create"\nversion="6.0"\n'}
+        )
         info = sync.read_mod(jar, "f.jar")
         self.assertEqual((info.mod_id, info.version, info.loader), ("create", "6.0", "forge"))
 
     def test_neoforge_toml(self) -> None:
-        jar = make_jar(self.root / "n.jar", {
-            "META-INF/neoforge.mods.toml": '[[mods]]\nmodId="jei"\nversion="19"\n'})
+        jar = make_jar(
+            self.root / "n.jar",
+            {"META-INF/neoforge.mods.toml": '[[mods]]\nmodId="jei"\nversion="19"\n'},
+        )
         self.assertEqual(sync.read_mod(jar, "n.jar").loader, "neoforge")
 
     def test_mcmod_info_list_and_dict_forms(self) -> None:
-        listed = make_jar(self.root / "l.zip", {
-            "mcmod.info": '[{"modid": "NotEnoughItems", "version": "1.0.5"}]'})
-        wrapped = make_jar(self.root / "w.jar", {
-            "mcmod.info": '// a comment\n{"modList": [{"modid": "hbm", "version": "X5"}]}'})
+        listed = make_jar(
+            self.root / "l.zip", {"mcmod.info": '[{"modid": "NotEnoughItems", "version": "1.0.5"}]'}
+        )
+        wrapped = make_jar(
+            self.root / "w.jar",
+            {"mcmod.info": '// a comment\n{"modList": [{"modid": "hbm", "version": "X5"}]}'},
+        )
         self.assertEqual(sync.read_mod(listed, "l.zip").mod_id, "notenoughitems")
         info = sync.read_mod(wrapped, "w.jar")
         self.assertEqual((info.mod_id, info.loader), ("hbm", "forge-legacy"))
@@ -110,8 +125,11 @@ class ReadMod(TempDirTest):
         (self.root / "broken.jar").write_text("not a zip")
         (self.root / "readme.txt").write_text("hi")
         empty = make_jar(self.root / "empty.jar", {"a.class": ""})
-        for path, rel in ((self.root / "broken.jar", "Broken.jar"),
-                          (self.root / "readme.txt", "readme.txt"), (empty, "sub/empty.jar")):
+        for path, rel in (
+            (self.root / "broken.jar", "Broken.jar"),
+            (self.root / "readme.txt", "readme.txt"),
+            (empty, "sub/empty.jar"),
+        ):
             with self.subTest(rel=rel):
                 info = sync.read_mod(path, rel)
                 self.assertEqual((info.mod_id, info.loader), (rel.lower(), "unknown"))
@@ -121,8 +139,10 @@ class FindServers(TempDirTest):
     def conf(self, folder: str, name: str) -> None:
         path = self.root / folder / "server.conf"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(f"NAME={name}\nJAR_FILE=s.jar\nPROFILE_DIR=/p\n"
-                        "SYNC_EXCLUDE=(one 'two words')\nSYNC_CONFIG_SKIP=()\n")
+        path.write_text(
+            f"NAME={name}\nJAR_FILE=s.jar\nPROFILE_DIR=/p\n"
+            "SYNC_EXCLUDE=(one 'two words')\nSYNC_CONFIG_SKIP=()\n"
+        )
 
     def setUp(self) -> None:
         super().setUp()
@@ -142,7 +162,9 @@ class FindServers(TempDirTest):
         self.assertEqual(sorted(servers), ["new-server", "old"])
         self.assertEqual(servers["old"].root, self.root / "legacy/Old-Server")
         self.assertEqual(servers["new-server"].root, self.root / "docker/servers/new-server/data")
-        self.assertEqual(servers["new-server"].backup_dir, self.root / "docker/servers/new-server/backups")
+        self.assertEqual(
+            servers["new-server"].backup_dir, self.root / "docker/servers/new-server/backups"
+        )
         self.assertEqual(servers["old"].backup_dir, self.root / "legacy/Old-Server/backups")
         self.assertEqual(servers["old"].exclude, ["one", "two words"])
         self.assertEqual(servers["old"].config_skip, [])
@@ -188,9 +210,15 @@ class Plan(TempDirTest):
         (sc / "skipme" / "secret.toml").write_text("id = 1\n")
         (pc / "debug.log").write_text("log")
 
-        self.server = sync.Server(name="t", root=s, backup_dir=self.root / "bk",
-                                  jar_file="s.jar", profile_dir=p,
-                                  exclude=["shader"], config_skip=["skipme"])
+        self.server = sync.Server(
+            name="t",
+            root=s,
+            backup_dir=self.root / "bk",
+            jar_file="s.jar",
+            profile_dir=p,
+            exclude=["shader"],
+            config_skip=["skipme"],
+        )
         self.plan = sync.build_plan(self.server)
 
     def changes(self, kind: str) -> list[str]:
@@ -220,8 +248,17 @@ class Plan(TempDirTest):
         mods = sorted(p.name for p in (self.s / "mods").iterdir())
         # Updated and downgraded files replace the old ones; server-only and skipped
         # mods stay; nothing client-only or excluded is copied in.
-        self.assertEqual(mods, ["new.jar", "older-1.jar", "same.jar", "serveronly.jar",
-                                "shaders.jar", "updated-2.jar"])
+        self.assertEqual(
+            mods,
+            [
+                "new.jar",
+                "older-1.jar",
+                "same.jar",
+                "serveronly.jar",
+                "shaders.jar",
+                "updated-2.jar",
+            ],
+        )
         self.assertEqual((self.s / "config" / "updated.toml").read_text(), "a = 2\n")
         self.assertEqual((self.s / "config" / "skipme" / "secret.toml").read_text(), "id = 1\n")
         self.assertEqual((self.s / "mods.txt").read_text().split(), mods)
