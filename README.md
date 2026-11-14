@@ -79,7 +79,9 @@ backup.
 Each server is just a folder, `docker/servers/<name>/`, holding:
 
 - `server.conf`: its settings: Java image, Minecraft version, jar, RAM, Java flags,
-  ports and mod sync settings (in git)
+  ports, mod sync settings, and optionally the address the game port listens on
+  (`BIND_ADDRESS`, default `127.0.0.1`) and who to tell about a failed backup
+  (`ADMIN_NAME`) (in git)
 - `data/`: its files: world, mods, configs, jar and `server.properties` (only the
   small hand-edited files are in git)
 - `backups/`: its world backups, and the mods/config copies `sync` makes before

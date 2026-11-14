@@ -2,11 +2,11 @@
   "comment": "Inputs always assume 100mB, input ammount cannot be changed.",
   "recipes": [
     {
-      "input": "TCRUDE",
-      "output0": ["HALOLIGHT",40],
-      "output1": ["CHLOROMETHANE",25],
-      "output2": ["HCL",20],
-      "output3": ["HGAS",15]
+      "input": "OIL_DS",
+      "output0": ["HEAVYOIL_VACUUM",40],
+      "output1": ["REFORMATE",25],
+      "output2": ["LIGHTOIL_VACUUM",20],
+      "output3": ["REFORMGAS",15]
     },
     {
       "input": "OIL",
@@ -16,11 +16,11 @@
       "output3": ["SOURGAS",15]
     },
     {
-      "input": "OIL_DS",
-      "output0": ["HEAVYOIL_VACUUM",40],
-      "output1": ["REFORMATE",25],
-      "output2": ["LIGHTOIL_VACUUM",20],
-      "output3": ["REFORMGAS",15]
+      "input": "TCRUDE",
+      "output0": ["HALOLIGHT",40],
+      "output1": ["CHLOROMETHANE",25],
+      "output2": ["HCL",20],
+      "output3": ["HGAS",15]
     }
   ]
 }

@@ -61,6 +61,10 @@ run_backup 2
 check "failed backup: exits 0 anyway" eq "$rc" 0
 check "failed backup: broken archive deleted" test ! -e "$archive" -a ! -e "${archive%.tar.gz}-auto.tar.gz"
 check "failed backup: red message" contains "$(cat "$chat")" '"color":"red"'
+check "failed backup: names the default contact" contains "$(cat "$chat")" 'Tell the server admin.'
+ADMIN_NAME="Lou\"is\\" run_backup 2
+check "failed backup: names ADMIN_NAME, minus JSON-breaking characters" \
+    contains "$(cat "$chat")" 'Tell Louis.'
 
 run_backup 0 no
 check "no archive written: counts as failed" contains "$(cat "$chat")" 'FAILED'

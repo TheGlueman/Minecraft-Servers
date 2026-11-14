@@ -20,9 +20,16 @@ RAM_ALLOCATION=6G
 # space-separated string).
 JAVA_ARGS=()
 
-# Ports on this PC (127.0.0.1 only). Each server needs its own pair.
+# Ports on this PC. Each server needs its own pair. RCON is only ever on 127.0.0.1.
 GAME_PORT=25569
 RCON_PORT=25578
+# Optional: the address the game port listens on. Default 127.0.0.1 (this PC only, e.g. for a
+# tunnel); 0.0.0.0 lets other computers on your network connect directly.
+#BIND_ADDRESS=0.0.0.0
+
+# Optional: who players are told to contact when a backup fails (default "the server admin").
+# Letters, digits, spaces and . _ ' - only.
+#ADMIN_NAME=Alex
 
 # Mod sync (./docker.sh <name> sync): the launcher profile this server's mods come from.
 PROFILE_DIR="$HOME/path/to/launcher/profile"

@@ -79,6 +79,27 @@ if [[ "$NAME" != "$name" ]]; then
     printf 'Error: NAME=%s in %s must match its folder name, %s.\n' "$NAME" "$conf_file" "$name" >&2
     exit 1
 fi
+# Optional: the address the game port listens on (0.0.0.0 for every network) and who players
+# are told to contact when a backup fails. Both end up in commands, so only plain values pass.
+BIND_ADDRESS=${BIND_ADDRESS:-127.0.0.1}
+bind_ok=false
+if [[ "$BIND_ADDRESS" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]]; then
+    bind_ok=true
+    for octet in "${BASH_REMATCH[@]:1}"; do
+        ((10#$octet <= 255)) || bind_ok=false
+    done
+fi
+if [[ "$bind_ok" != true ]]; then
+    printf 'Error: BIND_ADDRESS=%s in %s must be an IPv4 address, like 127.0.0.1 or 0.0.0.0.\n' \
+        "$BIND_ADDRESS" "$conf_file" >&2
+    exit 1
+fi
+ADMIN_NAME=${ADMIN_NAME:-the server admin}
+if [[ ! "$ADMIN_NAME" =~ ^[A-Za-z0-9\ _.\'-]+$ ]]; then
+    printf "Error: ADMIN_NAME=%s in %s may only use letters, digits, spaces and . _ ' -\n" \
+        "$ADMIN_NAME" "$conf_file" >&2
+    exit 1
+fi
 [[ -v JAVA_ARGS ]] || JAVA_ARGS=()
 SERVER_NAME=$NAME
 JVM_OPTS="${JAVA_ARGS[*]}"
@@ -88,7 +109,7 @@ SERVER_PORT=${SERVER_PORT:-25565}
 # The shared tooling (backup hooks), which compose.yaml mounts from here.
 DOCKER_DIR="$repo_root/docker"
 export SERVER_NAME JAVA_IMAGE MC_VERSION JAR_FILE RAM_ALLOCATION JVM_OPTS SERVER_PORT GAME_PORT RCON_PORT \
-    DOCKER_DIR
+    BIND_ADDRESS ADMIN_NAME DOCKER_DIR
 
 # RCON password for this server, made on first use (outside git, readable only by you).
 rcon_env="$HOME/.config/minecraft-servers/$NAME-rcon.env"
@@ -117,6 +138,21 @@ source "$repo_root/docker/backup-hooks/chat.sh"
 # say COLOUR TEXT: coloured chat message to everyone.
 say() {
     compose exec -T mc rcon-cli tellraw @a "$(tellraw_json Server "$1" "$2")" >/dev/null 2>&1
+}
+
+# healthy: the server itself answers (Docker's health status can be stale, e.g. just after
+# a restart, so ask the server).
+healthy() { compose exec -T mc mc-health >/dev/null 2>&1; }
+# wait_healthy SECONDS: wait until the server answers, giving up after SECONDS or as soon as
+# the container is no longer running. Fails if it never answered.
+wait_healthy() {
+    local deadline=$((SECONDS + $1))
+    until healthy; do
+        if ((SECONDS >= deadline)) || ! running_id >/dev/null; then
+            return 1
+        fi
+        sleep 3
+    done
 }
 
 # Number of players online; prints nothing if the server can't be asked.
@@ -190,14 +226,9 @@ shutdown() {
     # A stop sent while the container is still booting is lost (the image's start-up
     # scripts ignore it) and Docker kills the server after the grace period. So wait
     # until the server answers, up to 5 minutes.
-    if ! compose exec -T mc mc-health >/dev/null 2>&1; then
+    if ! healthy; then
         printf 'The server is still starting; waiting for it to finish loading before stopping it...\n'
-        local tries
-        for ((tries = 0; tries < 100; tries++)); do
-            compose exec -T mc mc-health >/dev/null 2>&1 && break
-            running_id >/dev/null || break
-            sleep 3
-        done
+        wait_healthy 300
     fi
 
     # The live excludes minus Distant Horizons: nothing will be running, so its databases
@@ -310,14 +341,10 @@ shutdown() {
     printf 'Starting %s again...\n' "$name"
     compose start || return 1
     if [[ "$backup_ok" != true ]]; then
-        # Tell the players once the server answers, up to 5 minutes. (Docker's health status
-        # still says "healthy" from before the stop, so ask the server itself.)
+        # Tell the players once the server answers, up to 5 minutes.
         printf 'Waiting for the server to load to announce the failed backup...\n'
-        for _ in $(seq 60); do
-            compose exec -T mc mc-health >/dev/null 2>&1 && break
-            sleep 5
-        done
-        say red "The shutdown backup FAILED. The world was not backed up. Tell Louis."
+        wait_healthy 300 || printf 'The server is not answering, so players may not hear about it.\n' >&2
+        say red "The shutdown backup FAILED. The world was not backed up. Tell $ADMIN_NAME."
         return 1
     fi
     printf 'Started in the background: ./docker.sh %s attach to watch it.\n' "$name"

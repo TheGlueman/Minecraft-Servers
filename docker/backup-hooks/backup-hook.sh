@@ -17,6 +17,10 @@ dest=${DEST_DIR:-/backups}
 # Overridable for tests (tests/test_backup_hook.sh).
 marker=${BACKUP_HOOK_MARKER:-/tmp/backup-hook-started}
 hooks_dir=$(dirname -- "${BASH_SOURCE[0]}")
+# Who players are told to contact (from server.conf via docker.sh, which checks it). Quotes
+# and backslashes would break the chat JSON, so drop any that get here another way.
+admin=${ADMIN_NAME:-the server admin}
+admin=${admin//[\"\\]/}
 
 log() { printf '%s backup-hook: %s\n' "$(date -Iseconds)" "$*"; }
 
@@ -57,7 +61,7 @@ case "${1:-}" in
             if [[ -n "$archive" ]]; then
                 rm -f -- "$archive" && log "deleted the incomplete archive $archive"
             fi
-            say red "$label backup FAILED. The world was not backed up. Tell Louis."
+            say red "$label backup FAILED. The world was not backed up. Tell $admin."
             exit 0
         fi
 
