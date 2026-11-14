@@ -128,7 +128,7 @@ if [[ -n "$real_docker" ]] && "$real_docker" compose version >/dev/null 2>&1; th
     # Render compose.yaml as docker.sh would, with BIND_ADDRESS set, and check what it made.
     rendered=$(HOME="$tmp/home" SERVER_NAME=selftest-t1 JAVA_IMAGE=img MC_VERSION=26.3 \
         JAR_FILE=server.jar RAM_ALLOCATION=2G SERVER_PORT=25565 GAME_PORT=25590 RCON_PORT=25591 \
-        BIND_ADDRESS=0.0.0.0 ADMIN_NAME=Louis DOCKER_DIR="$repo/docker" \
+        BIND_ADDRESS=0.0.0.0 ADMIN_NAME=Louis DOCKER_DIR="$repo/docker" HOST_UID=1234 HOST_GID=567 \
         "$real_docker" compose -f "$repo/docker/compose.yaml" \
         --project-directory "$repo/docker/servers/selftest-t1" -p selftest-t1 config --format json)
     query() { python3 -I -c "import json, sys; d = json.load(sys.stdin); print($1)" <<<"$rendered"; }
@@ -141,6 +141,8 @@ if [[ -n "$real_docker" ]] && "$real_docker" compose version >/dev/null 2>&1; th
     check "render: both have the time zone and server port" eq \
         "$(query '[(s["environment"]["TZ"], s["environment"]["SERVER_PORT"]) for s in d["services"].values()]')" \
         "[('Europe/London', '25565'), ('Europe/London', '25565')]"
+    check "render: the server runs as the host user" eq \
+        "$(query '[d["services"]["mc"]["environment"][k] for k in ("UID", "GID")]')" "['1234', '567']"
     check "render: the backups get ADMIN_NAME" eq \
         "$(query 'd["services"]["backups"]["environment"]["ADMIN_NAME"]')" Louis
 else

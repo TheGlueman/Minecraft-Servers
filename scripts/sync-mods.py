@@ -16,14 +16,17 @@ import argparse
 import difflib
 import filecmp
 import fnmatch
+import hashlib
 import json
 import re
 import shutil
 import subprocess
 import sys
 import tomllib
+import urllib.parse
+import urllib.request
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -31,6 +34,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # Generated or per-machine files that are never worth syncing.
 CONFIG_IGNORE_SUFFIXES = (".lock", ".log", ".bak", ".old", ".tmp", ".zip", ".7z", ".jar")
 DIFF_LINE_LIMIT = 40
+MODRINTH_API = "https://api.modrinth.com/v2"
+USER_AGENT = "Minecraft-Servers sync-mods"
 
 
 # --------------------------------------------------------------------------- config
@@ -149,6 +154,17 @@ def _real_version(version: str | None, manifest: str | None) -> str | None:
     return None
 
 
+def _toml_client_only(data: dict, mod_id: str) -> bool:
+    """(Neo)Forge: the mod says it needs Minecraft (or the loader) on the client side only."""
+    dependencies = (data.get("dependencies") or {}).get(mod_id) or []
+    return any(
+        isinstance(d, dict)
+        and str(d.get("modId", "")).lower() in ("minecraft", "neoforge", "forge")
+        and str(d.get("side", "")).upper() == "CLIENT"
+        for d in dependencies
+    )
+
+
 def read_mod(path: Path, rel: str) -> ModInfo:
     """Work out a file's mod ID, version and side from whatever metadata it has.
 
@@ -184,7 +200,8 @@ def read_mod(path: Path, rel: str) -> ModInfo:
                 ("META-INF/mods.toml", "forge"),
             ):
                 if toml_name in names:
-                    first = (tomllib.loads(read(toml_name)).get("mods") or [{}])[0]
+                    data = tomllib.loads(read(toml_name))
+                    first = (data.get("mods") or [{}])[0]
                     if first.get("modId"):
                         return ModInfo(
                             path,
@@ -192,7 +209,7 @@ def read_mod(path: Path, rel: str) -> ModInfo:
                             str(first["modId"]).lower(),
                             _real_version(first.get("version"), manifest),
                             loader,
-                            False,
+                            _toml_client_only(data, str(first["modId"])),
                         )
 
             if "mcmod.info" in names:
@@ -333,6 +350,8 @@ class Plan:
     config_skipped: list[Path]
     disabled: list[str]
     skipped_but_installed: list[ModInfo]
+    # What the Modrinth lookup found (or why it couldn't be done), for the plan's output.
+    modrinth_note: str = field(default="")
 
 
 def is_excluded(info: ModInfo, patterns: list[str]) -> bool:
@@ -430,12 +449,75 @@ def plan_configs(server: Server, plan: Plan, kept_ids: list[str], profile_dir: P
             plan.config_changes.append(ConfigChange("add", rel, source, target))
 
 
+def _api(path: str, body: object | None = None) -> object:
+    request = urllib.request.Request(
+        f"{MODRINTH_API}/{path}",
+        data=json.dumps(body).encode() if body is not None else None,
+        headers={"User-Agent": USER_AGENT, "Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.load(response)
+
+
+def modrinth_server_sides(sha1s: list[str]) -> dict[str, str]:
+    """File SHA-1 -> the Modrinth project's server_side ("required", "optional",
+    "unsupported", ...), for the files Modrinth knows. Raises OSError or ValueError
+    when Modrinth can't be asked. Only the checksums are sent."""
+    versions = _api("version_files", {"hashes": sha1s, "algorithm": "sha1"})
+    if not isinstance(versions, dict):
+        raise ValueError("unexpected reply from Modrinth")
+    projects: dict[str, str] = {
+        sha: v["project_id"] for sha, v in versions.items() if isinstance(v, dict)
+    }
+    ids = sorted(set(projects.values()))
+    sides: dict[str, str] = {}
+    for start in range(0, len(ids), 100):
+        chunk = json.dumps(ids[start : start + 100])
+        reply = _api("projects?ids=" + urllib.parse.quote(chunk))
+        if not isinstance(reply, list):
+            raise ValueError("unexpected reply from Modrinth")
+        sides.update({p["id"]: p.get("server_side", "unknown") for p in reply})
+    return {sha: sides.get(pid, "unknown") for sha, pid in projects.items()}
+
+
+def mark_modrinth_client_only(mods: dict[str, ModInfo]) -> str:
+    """Mark the mods Modrinth says don't run on servers as client-only.
+
+    Many (Neo)Forge mods don't say in their own metadata; Modrinth knows most of them,
+    whichever launcher installed them. Returns a line for the plan's output."""
+    by_sha: dict[str, list[ModInfo]] = {}
+    for info in mods.values():
+        if info.path.name.lower().endswith(ARCHIVE_SUFFIXES):
+            sha = hashlib.sha1(info.path.read_bytes()).hexdigest()
+            by_sha.setdefault(sha, []).append(info)
+    if not by_sha:
+        return ""
+    try:
+        sides = modrinth_server_sides(sorted(by_sha))
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        return (
+            f"Modrinth could not be asked ({error}): client-only mods were found from their "
+            "own metadata only."
+        )
+    marked = 0
+    for sha, side in sides.items():
+        if side == "unsupported":
+            for info in by_sha.get(sha, []):
+                marked += not info.client_only
+                info.client_only = True
+    return (
+        f"Modrinth knows {len(sides)} of {len(by_sha)} mod files; {marked} more are "
+        "client-only there (the rest are judged by their own metadata)."
+    )
+
+
 def build_plan(server: Server) -> Plan:
     profile_dir = server.profile_dir
     if profile_dir is None:  # main() checks this first
         raise ValueError(f"PROFILE_DIR is not set in the server.conf of {server.name}")
     plan = Plan([], [], [], [], [], [], [], disabled_files(profile_dir / "mods"), [])
     profile_mods = read_mods(profile_dir / "mods")
+    plan.modrinth_note = mark_modrinth_client_only(profile_mods)
     server_mods = read_mods(server.root / "mods")
     kept_ids = plan_mods(server, plan, profile_mods, server_mods)
     plan_configs(server, plan, kept_ids, profile_dir)
@@ -466,6 +548,8 @@ def _diff(change: ConfigChange) -> list[str]:
 
 def print_plan(server: Server, plan: Plan) -> None:
     print(f"Sync plan for {server.name}: {server.profile_dir}  ->  {server.root}\n")
+    if plan.modrinth_note:
+        print(f"{plan.modrinth_note}\n")
 
     downgrades = [c for c in plan.mod_changes if c.kind == "downgrade"]
     if downgrades:

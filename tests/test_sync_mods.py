@@ -6,6 +6,7 @@ Everything happens in throwaway folders; the real servers and profiles are not r
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import sys
@@ -23,6 +24,15 @@ if _spec is None or _spec.loader is None:
 sync: Any = importlib.util.module_from_spec(_spec)
 sys.modules["sync_mods"] = sync  # dataclasses look the module up while it loads
 _spec.loader.exec_module(sync)
+
+
+def _no_network(sha1s: list[str]) -> dict[str, str]:
+    raise OSError("no network in tests")
+
+
+# No test asks the real Modrinth; the ones about it put in their own answer.
+real_server_sides = sync.modrinth_server_sides
+sync.modrinth_server_sides = _no_network
 
 
 def make_jar(path: Path, files: dict[str, str]) -> Path:
@@ -108,6 +118,17 @@ class ReadMod(TempDirTest):
             {"META-INF/neoforge.mods.toml": '[[mods]]\nmodId="jei"\nversion="19"\n'},
         )
         self.assertEqual(sync.read_mod(jar, "n.jar").loader, "neoforge")
+
+    def test_toml_client_side_dependency(self) -> None:
+        toml = (
+            '[[mods]]\nmodId="sodium"\nversion="0.8"\n'
+            '[[dependencies.sodium]]\nmodId="minecraft"\nside="CLIENT"\n'
+        )
+        both = toml.replace('side="CLIENT"', 'side="BOTH"')
+        client = make_jar(self.root / "c.jar", {"META-INF/neoforge.mods.toml": toml})
+        either = make_jar(self.root / "b.jar", {"META-INF/neoforge.mods.toml": both})
+        self.assertTrue(sync.read_mod(client, "c.jar").client_only)
+        self.assertFalse(sync.read_mod(either, "b.jar").client_only)
 
     def test_mcmod_info_list_and_dict_forms(self) -> None:
         listed = make_jar(
@@ -270,6 +291,61 @@ class Plan(TempDirTest):
         self.assertTrue((backup / "mods" / "updated-1.jar").is_file())
         self.assertTrue((backup / "config" / "updated.toml").is_file())
         self.assertNotEqual(sync.backup_current(self.server), backup)
+
+
+class Modrinth(TempDirTest):
+    def setUp(self) -> None:
+        super().setUp()
+        self.mods = self.root / "mods"
+        self.client = make_jar(self.mods / "fancy.jar", {"mcmod.info": '[{"modid": "fancy"}]'})
+        self.server = make_jar(self.mods / "tech.jar", {"mcmod.info": '[{"modid": "tech"}]'})
+        make_jar(self.mods / "unknown.jar", {"mcmod.info": '[{"modid": "unknown"}]'})
+        self.asked: list[list[str]] = []
+
+    def tearDown(self) -> None:
+        sync.modrinth_server_sides = _no_network
+        super().tearDown()
+
+    def answer(self, sides: dict[Path, str]) -> None:
+        by_sha = {hashlib.sha1(path.read_bytes()).hexdigest(): side for path, side in sides.items()}
+
+        def fake(sha1s: list[str]) -> dict[str, str]:
+            self.asked.append(sha1s)
+            return {sha: side for sha, side in by_sha.items() if sha in sha1s}
+
+        sync.modrinth_server_sides = fake
+
+    def test_unsupported_on_servers_is_client_only(self) -> None:
+        self.answer({self.client: "unsupported", self.server: "required"})
+        mods = sync.read_mods(self.mods)
+        note = sync.mark_modrinth_client_only(mods)
+        self.assertEqual(len(self.asked[0]), 3)
+        self.assertEqual(
+            {k: m.client_only for k, m in mods.items()},
+            {"fancy": True, "tech": False, "unknown": False},
+        )
+        self.assertIn("Modrinth knows 2 of 3 mod files; 1 more are client-only", note)
+
+    def test_unreachable_carries_on(self) -> None:
+        mods = sync.read_mods(self.mods)
+        note = sync.mark_modrinth_client_only(mods)
+        self.assertIn("could not be asked (no network in tests)", note)
+        self.assertFalse(any(m.client_only for m in mods.values()))
+
+    def test_api_replies_are_joined_by_project(self) -> None:
+        replies = {
+            "version_files": {"aa": {"project_id": "P1"}, "bb": {"project_id": "P2"}},
+            "projects": [{"id": "P1", "server_side": "unsupported"}, {"id": "P2"}],
+        }
+        real_api = sync._api
+        sync._api = lambda path, body=None: replies[path.split("?")[0]]
+        try:
+            self.assertEqual(
+                real_server_sides(["aa", "bb", "cc"]),
+                {"aa": "unsupported", "bb": "unknown"},
+            )
+        finally:
+            sync._api = real_api
 
 
 if __name__ == "__main__":

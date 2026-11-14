@@ -44,8 +44,12 @@ can be Modrinth, CurseForge or any launcher folder with `mods/` and `config/`:
 
 - `PROFILE_DIR` in `server.conf` is the full path to the profile folder.
 - `SYNC_EXCLUDE=(...)` lists mods never to copy, matched against mod ID and file name.
-  Fabric mods marked client-only are skipped automatically; Forge and NeoForge mods
-  don't say, so their exclude list does the work.
+  Client-only mods are skipped automatically: those whose own metadata says so (Fabric's
+  `environment`, or a (Neo)Forge mod needing Minecraft on the client side only), and
+  those Modrinth marks as not running on servers. For that, the checksums of the
+  profile's mod files are looked up on Modrinth (nothing else is sent); it works for
+  CurseForge profiles too, since most mods are on both. If Modrinth can't be reached, the
+  plan says so and only the metadata is used. The exclude list catches the rest.
 - `SYNC_CONFIG_SKIP=(...)` lists config files or folders (relative to `config/`,
   wildcards allowed) never to overwrite.
 

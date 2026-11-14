@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # The one way to run the Docker servers in docker/servers/<name>/ (run it from anywhere).
 #
+#   ./docker.sh new <name> <instance> [--no-mods] [--ram 8G]
+#         Make a new server from a Modrinth or CurseForge instance (a name or a folder):
+#         server.conf, the server jar and the instance's mods. See scripts/new-server.py.
 #   ./docker.sh <name> up [-d] [--no-restart]
 #         Start. Without -d, stay attached: the live log, and type server commands. Ctrl+C
 #         or "stop" shuts down with a backup; Ctrl+D or closing the window detaches and
@@ -41,9 +44,14 @@ usage() {
     done
     local IFS='|'
     printf 'Usage: %s {%s} {%s} [options]\n' "$0" "${names[*]:-name}" "$commands"
+    printf '       %s new <name> <instance> [--no-mods] [--ram 8G]\n' "$0"
     printf 'See the comments at the top of %s for what each command does.\n' "$0"
 }
 
+if [[ "${1:-}" == new ]]; then
+    shift
+    exec python3 -I "$repo_root/scripts/new-server.py" "$@"
+fi
 if [[ $# -lt 2 ]]; then
     usage >&2
     exit 2
@@ -108,8 +116,11 @@ SERVER_PORT=$(sed -n 's/^server-port=\([0-9][0-9]*\).*/\1/p' "$server_folder/dat
 SERVER_PORT=${SERVER_PORT:-25565}
 # The shared tooling (backup hooks), which compose.yaml mounts from here.
 DOCKER_DIR="$repo_root/docker"
+# The server runs as you, so the files it writes in data/ are yours.
+HOST_UID=$(id -u)
+HOST_GID=$(id -g)
 export SERVER_NAME JAVA_IMAGE MC_VERSION JAR_FILE RAM_ALLOCATION JVM_OPTS SERVER_PORT GAME_PORT RCON_PORT \
-    BIND_ADDRESS ADMIN_NAME DOCKER_DIR
+    BIND_ADDRESS ADMIN_NAME DOCKER_DIR HOST_UID HOST_GID
 
 # Keep the secrets in server.properties out of git (sets up the git filter once).
 # (Not in the tests' copies of the tooling, which have no scripts/.)

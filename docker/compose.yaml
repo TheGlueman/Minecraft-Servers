@@ -13,6 +13,7 @@
 #   RCON_PORT       the RCON port, always 127.0.0.1 only
 #   ADMIN_NAME      who players are told to contact when a backup fails
 #   DOCKER_DIR      this folder (set by docker.sh), for the shared backup hooks
+#   HOST_UID, HOST_GID  your user and group ids (set by docker.sh)
 # Everything else is shared by all servers.
 
 # Settings both containers share, merged in below with "<<:". The restart policy: up to 3
@@ -38,6 +39,9 @@ services:
       VERSION: ${MC_VERSION:?}
       MEMORY: ${RAM_ALLOCATION:?}
       JVM_OPTS: ${JVM_OPTS:-}
+      # Run the server as you (docker.sh passes your ids), so its files in data/ are yours.
+      UID: ${HOST_UID:?}
+      GID: ${HOST_GID:?}
       # Seconds the server gets to save after "stop" before it is killed.
       STOP_DURATION: "90"
     stop_grace_period: 120s

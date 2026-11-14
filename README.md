@@ -1,7 +1,67 @@
 # Minecraft Servers
 
-Two modded Minecraft servers. The originals run with the legacy `run.sh` scripts in
-`legacy/`; Docker copies of both run through `./docker.sh`.
+Modded Minecraft servers in Docker, each made from a Modrinth or CurseForge instance and
+run with one script, `./docker.sh`: a live console, clean shutdowns, daily and shutdown
+backups, crash restarts and mod sync from the launcher. (The two original servers also
+still run with the legacy `run.sh` scripts in `legacy/`.)
+
+## What you need
+
+On Linux:
+
+- **Docker** with the Compose plugin, and your user allowed to use it:
+  `sudo usermod -aG docker $USER`, then log out and back in. Check with
+  `docker compose version`.
+- **Python 3.11 or newer** (`python3 --version`); nothing to install with pip.
+- **git**, **bash**, and the usual tools (`tar`, `flock`, `find`): already on most
+  distributions.
+- **The Modrinth App or CurseForge**, with the instance (modpack) you want to host
+  installed. Other launchers work too: give the instance folder and its versions by hand.
+- An internet connection when making a server (it downloads the server jar and asks
+  Modrinth which mods are client-only).
+
+Only needed to change the code here: pre-commit and the linters it runs (see the top of
+`.pre-commit-config.yaml`).
+
+## Quick setup
+
+```sh
+git clone <this repo> Minecraft-Servers
+cd Minecraft-Servers
+
+# Make a server from an instance, by its name in the launcher (or a path to its folder).
+./docker.sh new my-server "My Modpack"
+
+# Check its settings: RAM (default 8G), ports, ADMIN_NAME (who players should tell
+# about a failed backup).
+nano docker/servers/my-server/server.conf
+
+# Start it: you see the live log and can type server commands. Ctrl+C stops it with a
+# backup; Ctrl+D leaves it running in the background.
+./docker.sh my-server up
+```
+
+`new` reads the instance's Minecraft version and loader (Fabric, Forge, NeoForge or
+vanilla), downloads the right server jar from the official source, picks the Java
+version and free ports, and copies the mods and configs (leaving out client-only mods).
+Options: `--no-mods`, `--ram 6G`, and `--mc-version`/`--loader`/`--loader-version` for
+instances it can't read. If something fails, it removes what it made.
+
+Players on the same PC join at `localhost:<GAME_PORT>` (shown by `new`, and in
+`server.conf`). For other computers on your network, set `BIND_ADDRESS=0.0.0.0` in
+`server.conf` and join at this PC's address; from the internet you also need to forward
+that port on your router. If a mod still breaks the server because it is client-only,
+add it to `SYNC_EXCLUDE` in `server.conf` and delete it from `data/mods/`.
+
+All the commands (`down`, `backup`, `restart`, `status`, `sync`, ...) are in
+[Docker servers](#docker-servers) below. The `emily-server` and `hbm-server` folders
+are this repo's own servers (settings only; worlds aren't in git): delete them from
+`docker/servers/` if you don't want them.
+
+## This PC's servers
+
+The originals run with the legacy `run.sh` scripts in `legacy/`; Docker copies of both
+run through `./docker.sh`.
 
 | Server | Folder | Loader | Java | Port | Connect with |
 | --- | --- | --- | --- | --- | --- |
@@ -92,9 +152,10 @@ runs), `docker/backup-hooks/` (chat messages and pruning) and `docker/console.py
 (the `up`/`attach` view). The RCON password for each server is created on first use
 in `~/.config/minecraft-servers/<name>-rcon.env`.
 
-To add a server: copy `docker/server.conf.example` to
-`docker/servers/<name>/server.conf` and fill it in, put the server's files in
-`docker/servers/<name>/data/`, then `./docker.sh <name> up`.
+To add a server: `./docker.sh new <name> <instance>` (see [Quick setup](#quick-setup)).
+By hand: copy `docker/server.conf.example` to `docker/servers/<name>/server.conf` and
+fill it in, put the server's files in `docker/servers/<name>/data/`, then
+`./docker.sh <name> up`.
 
 ## Layout
 
@@ -162,7 +223,9 @@ Keep the repo private: `ops.json` and `whitelist.json` contain player names and
 UUIDs. The DNS update token lives in `~/.config/minecraft-servers/dns.env`,
 outside this folder.
 
-## Adding a server
+## Adding a run.sh server (legacy)
+
+New servers go in Docker: see [Quick setup](#quick-setup). For another run.sh server:
 
 1. Create its folder with a `server.conf` (copy an existing one and change `NAME=`).
 2. Add a block for it in `.gitignore`.
