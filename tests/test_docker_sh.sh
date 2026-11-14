@@ -59,7 +59,8 @@ check "unknown command: exit 2" eq "$rc" 2
 
 for opt in "up --bogus" "restart --no-backup" "down --later" "logs x" "attach x" \
     "status x" "backup x" "sync --apply"; do
-    # shellcheck disable=SC2086 # split into command and option on purpose
+    # Unquoted on purpose: "$opt" holds the command and its option, to be split.
+    # shellcheck disable=SC2086
     ds selftest-t1 $opt
     check "rejects '$opt' (exit 2)" eq "$rc" 2
 done

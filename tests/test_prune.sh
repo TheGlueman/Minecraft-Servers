@@ -38,7 +38,8 @@ check "no backups of a kind is fine" eq "$?$out" 0
 check "fewer than KEEP deletes nothing" eq "$(find "$dir" -name '*-auto.tar.gz' | wc -l)" 10
 
 for bad in "0 auto" "abc auto" "-1 auto" "10 Auto" "10 ../x" "10 a*"; do
-    # shellcheck disable=SC2086 # split into KEEP and KIND on purpose
+    # Unquoted on purpose: "$bad" holds both arguments, KEEP and KIND, to be split.
+    # shellcheck disable=SC2086
     "$prune" "$dir" $bad >/dev/null 2>&1
     check "rejects KEEP/KIND '$bad'" eq "$?" 2
 done

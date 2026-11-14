@@ -22,14 +22,19 @@ select = [
   "RUF",  # Ruff's own
 ]
 ignore = [
-  # Too many returns / branches / arguments / statements.
+  # Too many returns / branches / arguments / statements in one function. Scripts often
+  # have long step-by-step functions (a main, a report printer) where splitting them up
+  # only hides the order of the steps; keyword-only arguments (PLR0917) stay checked.
   "PLR0911",
   "PLR0912",
   "PLR0913",
   "PLR0915",
-  "PLR2004", # magic values in comparisons
+  # "Magic" numbers in comparisons: naming every port, exit code or version number as a
+  # constant makes this kind of code harder to read, not easier.
+  "PLR2004",
 ]
 
 [lint.per-file-ignores]
-# Tests use plain asserts and long literal tables.
+# A test class has one public method per test (PLR0904: too many public methods), and
+# tables of expected values read best one long line per case (E501: line too long).
 "**/test_*.py" = ["PLR0904", "E501"]

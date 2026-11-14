@@ -9,7 +9,6 @@
 !/.markdownlint-cli2.jsonc
 !/.yamllint.yaml
 !/.gitleaksignore
-!/_typos.toml
 !/README.md
 !/scripts/
 !/docker/

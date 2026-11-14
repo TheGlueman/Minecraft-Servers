@@ -1,4 +1,5 @@
-# shellcheck shell=bash disable=SC2034 # the variables here are used by the tests
+# Only ever sourced, so it has no #! line: tell shellcheck it is Bash.
+# shellcheck shell=bash
 # Tiny test helpers, sourced by the tests/test_*.sh scripts.
 #
 #   check "what it tests" COMMAND...   passes if COMMAND succeeds

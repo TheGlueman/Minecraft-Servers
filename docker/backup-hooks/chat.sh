@@ -1,3 +1,4 @@
+# Only ever sourced, so it has no #! line: tell shellcheck it is Bash.
 # shellcheck shell=bash
 # Sourced by backup-hook.sh and docker.sh.
 # tellraw_json TAG COLOUR TEXT: a chat line "[TAG] TEXT" with a gold tag and coloured text,

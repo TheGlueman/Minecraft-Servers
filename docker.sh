@@ -74,7 +74,8 @@ fi
 
 # The server's settings (trusted Bash, like the run.sh servers' server.conf), passed to the
 # shared docker/compose.yaml as environment variables.
-# shellcheck source=/dev/null # a different file per server
+# Each server has its own server.conf, so there is no one file for shellcheck to follow.
+# shellcheck source=/dev/null
 source "$conf_file" || exit 1
 for var in NAME JAVA_IMAGE MC_VERSION JAR_FILE RAM_ALLOCATION GAME_PORT RCON_PORT; do
     if [[ -z "${!var:-}" ]]; then
@@ -82,7 +83,9 @@ for var in NAME JAVA_IMAGE MC_VERSION JAR_FILE RAM_ALLOCATION GAME_PORT RCON_POR
         exit 1
     fi
 done
-# shellcheck disable=SC2153 # NAME comes from server.conf, name from the command line
+# NAME looks like a misspelling of name to shellcheck. It is not: NAME comes from server.conf,
+# name from the command line, and this checks they match.
+# shellcheck disable=SC2153
 if [[ "$NAME" != "$name" ]]; then
     printf 'Error: NAME=%s in %s must match its folder name, %s.\n' "$NAME" "$conf_file" "$name" >&2
     exit 1
@@ -521,7 +524,9 @@ case "$action" in
                 printf '%-9s backups: none\n' "$kind"
                 continue
             fi
-            # shellcheck disable=SC2012 # backup names are ours: no spaces or newlines
+            # Parsing ls is safe here: the backup names are made by our own scripts and have
+            # no spaces or newlines, and ls -t is the simplest way to get the newest.
+            # shellcheck disable=SC2012
             newest=$(ls -t -- "${files[@]}" | head -n 1)
             printf '%-9s backups: %2d, newest %s (%s)\n' "$kind" "${#files[@]}" \
                 "$(basename -- "$newest")" "$(du -h -- "$newest" | cut -f1)"

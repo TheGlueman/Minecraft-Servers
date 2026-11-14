@@ -428,14 +428,17 @@ def get_forge(version: GameVersion, image: str, data: Path) -> str:
     else:
         raise SetupError(
             f"No {version.loader} installer found for {version.loader_version}."
-        ) from (last_error)
+        ) from last_error
 
     print(f"Running the {version.loader} installer (it downloads the server's libraries)...")
+    # Kept as flag-and-value pairs on a few lines; the formatter would put each word on its own.
+    # fmt: off
     result = _run([
         "docker", "run", "--rm", "--user", f"{os.getuid()}:{os.getgid()}",
         "-e", "HOME=/tmp", "-v", f"{data}:/data", "-w", "/data",
         "--entrypoint", "java", image, "-jar", "installer.jar", "--installServer",
-    ])  # fmt: skip
+    ])
+    # fmt: on
     installer.unlink(missing_ok=True)
     for log in data.glob("installer.jar*.log"):
         log.unlink()

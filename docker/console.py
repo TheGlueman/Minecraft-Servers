@@ -23,17 +23,20 @@ import sys
 import threading
 
 with contextlib.suppress(ImportError):
-    import readline  # noqa: F401  (gives input() line editing and history)
+    # Never called, but importing it gives input() line editing and history.
+    import readline  # noqa: F401
 
 DETACHED, SHUTDOWN, STOPPED, CRASHED = 0, 10, 11, 12
 POLL_SECONDS = 2
 
 
-# These two are signals between threads, not errors (like KeyboardInterrupt).
+# These two are signals between threads, not errors (like KeyboardInterrupt), so their
+# names don't end in "Error".
 class ServerGone(Exception):  # noqa: N818
     """Raised in the main thread when the monitor sees the server has stopped."""
 
 
+# A signal between threads, not an error (see ServerGone).
 class Detach(Exception):  # noqa: N818
     """Raised in the main thread when the terminal goes away (SIGHUP)."""
 
