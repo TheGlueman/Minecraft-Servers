@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The one way to run the Docker servers in docker/<name>/ (run it from anywhere).
+# The one way to run the Docker servers in docker/servers/<name>/ (run it from anywhere).
 #
 #   ./docker.sh <name> up [-d] [--no-restart]
 #         Start. Without -d, stay attached: the live log, and type server commands. Ctrl+C
@@ -18,12 +18,12 @@
 #   ./docker.sh <name> sync [--dry-run]   update mods/configs from the launcher profile
 #                                         (scripts/sync-mods.py; only while stopped)
 #
-# Each server is a folder docker/<name>/ with its settings in server.conf (see
-# docker/server.conf.example) and its files in server/. All servers share
-# docker/compose.yaml; nothing else is per server.
+# Each server is a folder docker/servers/<name>/ with its settings in server.conf (see
+# docker/server.conf.example), its files in server/ and its backups in backups/. All
+# servers share docker/compose.yaml and the tooling next to it; nothing else is per server.
 #
-# Backups all go in one folder, named by kind; the newest KEEP_BACKUPS (10) of each kind are
-# kept, pruned only right after a good backup of that kind:
+# Backups all go in the server's backups/ folder, named by kind; the newest KEEP_BACKUPS
+# (10) of each kind are kept, pruned only right after a good backup of that kind:
 #   <name>-<time>-auto.tar.gz      live, every 24h of uptime (without Distant Horizons)
 #   <name>-<time>-manual.tar.gz    live, from "backup" (without Distant Horizons)
 #   <name>-<time>-shutdown.tar.gz  full, from down/restart/Ctrl+C, made while the server is off
@@ -36,7 +36,7 @@ commands='up|down|restart|backup|logs|console|attach|status|sync'
 
 usage() {
     local names=() f
-    for f in "$repo_root"/docker/*/server.conf; do
+    for f in "$repo_root"/docker/servers/*/server.conf; do
         [[ -f "$f" ]] && names+=("$(basename -- "$(dirname -- "$f")")")
     done
     local IFS='|'
@@ -51,7 +51,7 @@ fi
 name=$1
 action=$2
 shift 2
-server_folder="$repo_root/docker/$name"
+server_folder="$repo_root/docker/servers/$name"
 conf_file="$server_folder/server.conf"
 if [[ "$name" == */* || "$name" == .* || ! -f "$conf_file" ]]; then
     printf 'Error: no Docker server named %s (looked for %s)\n' "$name" "$conf_file" >&2
@@ -85,7 +85,10 @@ JVM_OPTS="${JAVA_ARGS[*]}"
 # The port the server listens on inside the container: its own server.properties decides.
 SERVER_PORT=$(sed -n 's/^server-port=\([0-9][0-9]*\).*/\1/p' "$server_folder/server/server.properties" 2>/dev/null | tail -n 1)
 SERVER_PORT=${SERVER_PORT:-25565}
-export SERVER_NAME JAVA_IMAGE MC_VERSION JAR_FILE RAM_ALLOCATION JVM_OPTS SERVER_PORT GAME_PORT RCON_PORT
+# The shared tooling (backup hooks), which compose.yaml mounts from here.
+DOCKER_DIR="$repo_root/docker"
+export SERVER_NAME JAVA_IMAGE MC_VERSION JAR_FILE RAM_ALLOCATION JVM_OPTS SERVER_PORT GAME_PORT RCON_PORT \
+    DOCKER_DIR
 
 # RCON password for this server, made on first use (outside git, readable only by you).
 rcon_env="$HOME/.config/minecraft-servers/$NAME-rcon.env"
@@ -103,7 +106,7 @@ if [[ ! -d "$server_folder/server" ]]; then
 fi
 # Make the backup folder ourselves: if Docker had to create it for the mount it would be
 # owned by root, and so would the backups and the lock file in it.
-mkdir -p -- "$server_folder/server/backups-docker" || exit 1
+mkdir -p -- "$server_folder/backups" || exit 1
 
 compose() {
     docker compose -f "$repo_root/docker/compose.yaml" --project-directory "$server_folder" \

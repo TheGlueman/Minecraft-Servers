@@ -1,5 +1,6 @@
-# Settings for one Docker server: copy to docker/<name>/server.conf and fill in.
-# The server's files (world, mods, jar, server.properties, ...) go in docker/<name>/server/.
+# Settings for one Docker server: copy to docker/servers/<name>/server.conf and fill in.
+# The server's files (world, mods, jar, server.properties, ...) go in
+# docker/servers/<name>/server/; its backups are made in docker/servers/<name>/backups/.
 # Everything not set here is shared by all servers in docker/compose.yaml.
 # Like the run.sh servers' server.conf, this is trusted Bash that the scripts source.
 

@@ -36,8 +36,9 @@ the account with `loginctl enable-linger louis`.
 
 `./scripts/sync-mods.py emily` updates a server's mods and configs from its client
 profile. It finds servers by their `server.conf` NAME, in `legacy/*/` and
-`docker/*/`; names must be unique. For the Docker servers (`./docker.sh emily-server
-sync`, or `sync-mods.py emily-server`) it works on their `server/` folder. The profile
+`docker/servers/*/`; names must be unique. For the Docker servers (`./docker.sh
+emily-server sync`, or `sync-mods.py emily-server`) it works on their `server/` folder
+and puts its before-sync copy of mods/ and config/ in their `backups/` folder. The profile
 can be Modrinth, CurseForge or any launcher folder with `mods/` and `config/`:
 
 - `PROFILE_DIR` in `server.conf` is the full path to the profile folder.

@@ -6,7 +6,7 @@
 #   contains TEXT PART                 a COMMAND for check: TEXT contains PART
 #   finish                             prints the totals; returns non-zero on any failure
 #   copy_tooling DIR                   a throwaway repo in DIR with docker.sh and the Docker
-#                                      tooling, but no servers (add them in DIR/docker/<name>/)
+#                                      tooling, but no servers (add them in DIR/docker/servers/<name>/)
 #
 # Each test script gets its own empty folder in $tmp, removed when it exits.
 

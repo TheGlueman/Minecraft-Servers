@@ -135,18 +135,21 @@ class FindServers(TempDirTest):
 
     def test_legacy_and_docker_servers(self) -> None:
         self.conf("legacy/Old-Server", "Old")
-        self.conf("docker/new-server", "new-server")
+        self.conf("docker/servers/new-server", "new-server")
+        self.conf("docker/old-layout", "ignored-too")
         self.conf("not-a-server-place/x", "ignored")
         servers = sync.find_servers()
         self.assertEqual(sorted(servers), ["new-server", "old"])
         self.assertEqual(servers["old"].root, self.root / "legacy/Old-Server")
-        self.assertEqual(servers["new-server"].root, self.root / "docker/new-server/server")
+        self.assertEqual(servers["new-server"].root, self.root / "docker/servers/new-server/server")
+        self.assertEqual(servers["new-server"].backup_dir, self.root / "docker/servers/new-server/backups")
+        self.assertEqual(servers["old"].backup_dir, self.root / "legacy/Old-Server/backups")
         self.assertEqual(servers["old"].exclude, ["one", "two words"])
         self.assertEqual(servers["old"].config_skip, [])
 
     def test_duplicate_names_stop(self) -> None:
         self.conf("legacy/A", "same")
-        self.conf("docker/same", "Same")
+        self.conf("docker/servers/same", "Same")
         with self.assertRaises(SystemExit):
             sync.find_servers()
 
@@ -185,7 +188,8 @@ class Plan(TempDirTest):
         (sc / "skipme" / "secret.toml").write_text("id = 1\n")
         (pc / "debug.log").write_text("log")
 
-        self.server = sync.Server(name="t", root=s, jar_file="s.jar", profile_dir=p,
+        self.server = sync.Server(name="t", root=s, backup_dir=self.root / "bk",
+                                  jar_file="s.jar", profile_dir=p,
                                   exclude=["shader"], config_skip=["skipme"])
         self.plan = sync.build_plan(self.server)
 
@@ -225,6 +229,7 @@ class Plan(TempDirTest):
 
     def test_backup_current(self) -> None:
         backup = sync.backup_current(self.server)
+        self.assertEqual(backup.parent, self.root / "bk")
         self.assertTrue((backup / "mods" / "updated-1.jar").is_file())
         self.assertTrue((backup / "config" / "updated.toml").is_file())
         self.assertNotEqual(sync.backup_current(self.server), backup)

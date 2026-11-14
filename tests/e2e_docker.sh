@@ -10,11 +10,11 @@
 set -uo pipefail
 source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
 
-source_server="$repo_root/docker/emily-server"
+source_server="$repo_root/docker/servers/emily-server"
 name=e2e-test
 work="$repo_root/tests/work"
-server="$work/docker/$name"
-backups="$server/server/backups-docker"
+server="$work/docker/servers/$name"
+backups="$server/backups"
 rcon_env="$HOME/.config/minecraft-servers/$name-rcon.env"
 log="$tmp/e2e.log"
 
@@ -43,7 +43,7 @@ rm -rf -- "$work"
 copy_tooling "$work" || exit 1
 mkdir -p "$server"
 cp -a --reflink=auto -- "$source_server/server" "$server/" || exit 1
-rm -rf -- "$backups" "$server/server/logs" "$server/server/crash-reports"
+rm -rf -- "$server/server/logs" "$server/server/crash-reports"
 sed -e "s/^NAME=.*/NAME=$name/" -e 's/^GAME_PORT=.*/GAME_PORT=25596/' \
     -e 's/^RCON_PORT=.*/RCON_PORT=25597/' "$source_server/server.conf" > "$server/server.conf"
 

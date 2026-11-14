@@ -39,6 +39,7 @@ DIFF_LINE_LIMIT = 40
 class Server:
     name: str
     root: Path
+    backup_dir: Path      # where the mods/config backup goes before a sync
     jar_file: str
     profile_dir: Path | None
     exclude: list[str]
@@ -71,11 +72,17 @@ def read_server_conf(conf: Path) -> Server | None:
         return None
     if not name:
         return None
+    # Docker servers (docker/servers/<name>/server.conf) keep their files in server/ and
+    # their backups in backups/ next to it; run.sh servers keep server.conf, and a
+    # backups/ folder, inside the server folder itself.
+    if conf.parent.parent == REPO_ROOT / "docker" / "servers":
+        root, backup_dir = conf.parent / "server", conf.parent / "backups"
+    else:
+        root, backup_dir = conf.parent, conf.parent / "backups"
     return Server(
         name=name.lower(),
-        # Docker servers (docker/<name>/server.conf) keep their files in server/ next to
-        # it; run.sh servers keep server.conf inside the server folder itself.
-        root=conf.parent / "server" if conf.parent.parent == REPO_ROOT / "docker" else conf.parent,
+        root=root,
+        backup_dir=backup_dir,
         jar_file=jar_file,
         profile_dir=Path(profile) if profile else None,
         exclude=[e for e in exclude if e],
@@ -86,9 +93,9 @@ def read_server_conf(conf: Path) -> Server | None:
 def find_servers() -> dict[str, Server]:
     servers: dict[str, Server] = {}
     # Legacy run.sh servers (legacy/<folder>/server.conf) and Docker servers
-    # (docker/<name>/server.conf).
+    # (docker/servers/<name>/server.conf).
     confs = (sorted(REPO_ROOT.glob("legacy/*/server.conf"))
-             + sorted(REPO_ROOT.glob("docker/*/server.conf")))
+             + sorted(REPO_ROOT.glob("docker/servers/*/server.conf")))
     for conf in confs:
         server = read_server_conf(conf)
         if not server:
@@ -499,10 +506,10 @@ def server_is_running(server: Server) -> str | None:
 
 def backup_current(server: Server) -> Path:
     stamp = datetime.now().strftime("%y-%m-%d_%H-%M")
-    dest = server.root / "backups" / f"mods-config_{stamp}"
+    dest = server.backup_dir / f"mods-config_{stamp}"
     suffix = 2
     while dest.exists():
-        dest = server.root / "backups" / f"mods-config_{stamp}_{suffix}"
+        dest = server.backup_dir / f"mods-config_{stamp}_{suffix}"
         suffix += 1
     dest.mkdir(parents=True)
     for folder in ("mods", "config"):

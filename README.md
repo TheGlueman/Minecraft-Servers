@@ -64,8 +64,8 @@ warning), `down --no-backup`.
 After a crash Docker restarts the server, up to 3 times. Stopping it yourself never
 triggers a restart.
 
-Backups go in `docker/<name>/server/backups-docker/`, named by kind, keeping the
-newest 10 of each kind:
+Backups go in `docker/servers/<name>/backups/`, named by kind, keeping the newest 10
+of each kind:
 
 - `…-auto.tar.gz`: live, every 24h of uptime (without Distant Horizons)
 - `…-manual.tar.gz`: live, from `backup` (without Distant Horizons)
@@ -76,20 +76,23 @@ backup.
 
 ### How a Docker server is put together
 
-Each server is just a folder, `docker/<name>/`, holding:
+Each server is just a folder, `docker/servers/<name>/`, holding:
 
 - `server.conf`: its settings: Java image, Minecraft version, jar, RAM, Java flags,
   ports and mod sync settings (in git)
-- `server/`: its files: world, mods, configs, jar, `server.properties` and backups (not in git)
+- `server/`: its files: world, mods, configs, jar and `server.properties` (only the
+  small hand-edited files are in git)
+- `backups/`: its world backups, and the mods/config copies `sync` makes before
+  changing anything (not in git). Only the backup container can see this folder.
 
 Everything else is shared by all of them: `docker/compose.yaml` (how every server
 runs), `docker/backup-hooks/` (chat messages and pruning) and `docker/console.py`
 (the `up`/`attach` view). The RCON password for each server is created on first use
 in `~/.config/minecraft-servers/<name>-rcon.env`.
 
-To add a server: copy `docker/server.conf.example` to `docker/<name>/server.conf`
-and fill it in, put the server's files in `docker/<name>/server/`, then
-`./docker.sh <name> up`.
+To add a server: copy `docker/server.conf.example` to
+`docker/servers/<name>/server.conf` and fill it in, put the server's files in
+`docker/servers/<name>/server/`, then `./docker.sh <name> up`.
 
 ## Layout
 
@@ -103,8 +106,9 @@ Minecraft-Servers/
 │   ├── server.conf.example  template for a new Docker server's settings
 │   ├── backup-hooks/     chat announcements and pruning for Docker backups
 │   ├── console.py        the live log + command console behind docker.sh up/attach
-│   ├── emily-server/     server.conf + server/ (its files; not in git)
-│   └── hbm-server/       server.conf + server/ (its files; not in git)
+│   └── servers/          one folder per server: server.conf, server/, backups/
+│       ├── emily-server/
+│       └── hbm-server/
 └── legacy/               the original servers and the run.sh scripts that run them
     ├── scripts/          run.sh, server.sh, backup.sh, lib/servers.sh
     ├── Emily-Server/

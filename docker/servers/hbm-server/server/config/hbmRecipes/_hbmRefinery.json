@@ -10,20 +10,20 @@
       "solid": ["hbm:item.oil_tar",1,5]
     },
     {
-      "input": "HOTOIL",
-      "output0": ["HEAVYOIL",50],
-      "output1": ["NAPHTHA",25],
-      "output2": ["LIGHTOIL",15],
-      "output3": ["PETROLEUM",10],
-      "solid": ["hbm:item.sulfur"]
-    },
-    {
       "input": "HOTCRACKOIL",
       "output0": ["NAPHTHA_CRACK",40],
       "output1": ["LIGHTOIL_CRACK",30],
       "output2": ["AROMATICS",15],
       "output3": ["UNSATURATEDS",15],
       "solid": ["hbm:item.oil_tar",1,1]
+    },
+    {
+      "input": "HOTOIL",
+      "output0": ["HEAVYOIL",50],
+      "output1": ["NAPHTHA",25],
+      "output2": ["LIGHTOIL",15],
+      "output3": ["PETROLEUM",10],
+      "solid": ["hbm:item.sulfur"]
     },
     {
       "input": "HOTCRACKOIL_DS",

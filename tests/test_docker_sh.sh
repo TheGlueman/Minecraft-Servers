@@ -8,8 +8,8 @@ source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
 
 repo="$tmp/repo"
 copy_tooling "$repo" || exit 1
-mkdir -p "$repo/docker/selftest-t1/server" "$tmp/home" "$tmp/bin"
-conf="$repo/docker/selftest-t1/server.conf"
+mkdir -p "$repo/docker/servers/selftest-t1/server" "$tmp/home" "$tmp/bin"
+conf="$repo/docker/servers/selftest-t1/server.conf"
 write_conf() {
     cat > "$conf" <<'EOF'
 NAME=selftest-t1
@@ -47,7 +47,9 @@ check "no command: exit 2" eq "$rc" 2
 ds nope up
 check "unknown server: exit 2" eq "$rc" 2
 check "unknown server: says so" contains "$out" "no Docker server named nope"
-for bad in ../selftest-t1 selftest-t1/ .selftest-t1 backup-hooks; do
+# not-a-server: a folder in docker/servers/ without a server.conf.
+mkdir -p "$repo/docker/servers/not-a-server"
+for bad in ../selftest-t1 selftest-t1/ .selftest-t1 not-a-server; do
     ds "$bad" status
     check "rejects server name '$bad'" eq "$rc" 2
 done
@@ -74,11 +76,11 @@ ds selftest-t1 status
 check "NAME must match the folder" contains "$out" "must match its folder name"
 write_conf
 
-rm -rf "$repo/docker/selftest-t1/server"
+rm -rf "$repo/docker/servers/selftest-t1/server"
 ds selftest-t1 status
 check "no server/ folder: exit 1" eq "$rc" 1
 check "no server/ folder: says so" contains "$out" "has no server/ folder"
-mkdir -p "$repo/docker/selftest-t1/server"
+mkdir -p "$repo/docker/servers/selftest-t1/server"
 
 rcon="$tmp/home/.config/minecraft-servers/selftest-t1-rcon.env"
 check "makes an RCON password file" test -f "$rcon"
@@ -88,11 +90,11 @@ check "...with a long random password" grep -qE '^RCON_PASSWORD=[A-Za-z0-9]{20,}
 before=$(cat "$rcon")
 ds selftest-t1 status
 check "keeps the same password on later runs" eq "$(cat "$rcon")" "$before"
-check "makes the backup folder itself (not Docker as root)" test -d "$repo/docker/selftest-t1/server/backups-docker"
+check "makes backups/ itself (not Docker as root)" test -d "$repo/docker/servers/selftest-t1/backups"
 
 check "passes JAVA_ARGS to Docker as JVM_OPTS" contains "$(cat "$tmp/docker-env")" "JVM_OPTS=-XX:+UseZGC -Dfoo=bar"
 check "SERVER_PORT defaults to 25565" contains "$(cat "$tmp/docker-env")" "SERVER_PORT=25565 "
-printf 'motd=x\nserver-port=25601\n' > "$repo/docker/selftest-t1/server/server.properties"
+printf 'motd=x\nserver-port=25601\n' > "$repo/docker/servers/selftest-t1/server/server.properties"
 ds selftest-t1 status
 check "SERVER_PORT comes from server.properties" contains "$(cat "$tmp/docker-env")" "SERVER_PORT=25601 "
 
