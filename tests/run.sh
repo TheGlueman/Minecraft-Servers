@@ -8,7 +8,6 @@
 # tests/e2e_docker.sh.
 set -uo pipefail
 tests_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-repo_root=$(dirname -- "$tests_dir")
 
 e2e=false
 for arg in "$@"; do

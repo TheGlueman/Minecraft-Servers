@@ -15,6 +15,11 @@
 exclude: ^(legacy/|docker/servers/[^/]+/data/)
 
 repos:
+  # pre-commit's own check that every exclude pattern still matches something.
+  - repo: meta
+    hooks:
+      - id: check-useless-excludes
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
     hooks:
@@ -60,17 +65,20 @@ repos:
         language: system
         types_or: [python, pyi]
 
-      # Shell (shfmt flags win over an .editorconfig; drop them if the repo has one)
+      # Shell: bash/sh only, not zsh (identify tags them all "shell"). shfmt's flags win over
+      # an .editorconfig; drop them if the repo has one.
       - id: shfmt
         name: shfmt
         entry: shfmt -w -i 4 -ci -bn
         language: system
-        types_or: [bash, sh]
+        types: [shell]
+        exclude_types: [zsh]
       - id: shellcheck
         name: shellcheck
         entry: shellcheck -x -P SCRIPTDIR
         language: system
-        types_or: [bash, sh]
+        types: [shell]
+        exclude_types: [zsh]
 
       # Markdown (prettier stays out of Markdown: markdownlint owns it)
       - id: markdownlint
