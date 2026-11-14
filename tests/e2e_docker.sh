@@ -42,8 +42,8 @@ printf '  ..    copying emily-server (reflink) into tests/work\n'
 rm -rf -- "$work"
 copy_tooling "$work" || exit 1
 mkdir -p "$server"
-cp -a --reflink=auto -- "$source_server/server" "$server/" || exit 1
-rm -rf -- "$server/server/logs" "$server/server/crash-reports"
+cp -a --reflink=auto -- "$source_server/data" "$server/" || exit 1
+rm -rf -- "$server/data/logs" "$server/data/crash-reports"
 sed -e "s/^NAME=.*/NAME=$name/" -e 's/^GAME_PORT=.*/GAME_PORT=25596/' \
     -e 's/^RCON_PORT=.*/RCON_PORT=25597/' "$source_server/server.conf" > "$server/server.conf"
 

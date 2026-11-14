@@ -141,7 +141,7 @@ class FindServers(TempDirTest):
         servers = sync.find_servers()
         self.assertEqual(sorted(servers), ["new-server", "old"])
         self.assertEqual(servers["old"].root, self.root / "legacy/Old-Server")
-        self.assertEqual(servers["new-server"].root, self.root / "docker/servers/new-server/server")
+        self.assertEqual(servers["new-server"].root, self.root / "docker/servers/new-server/data")
         self.assertEqual(servers["new-server"].backup_dir, self.root / "docker/servers/new-server/backups")
         self.assertEqual(servers["old"].backup_dir, self.root / "legacy/Old-Server/backups")
         self.assertEqual(servers["old"].exclude, ["one", "two words"])

@@ -1,12 +1,12 @@
 # The one Compose file for every Docker server. Don't run it directly: use docker.sh
 # (./docker.sh <name> up, down, backup, ...), which reads docker/servers/<name>/server.conf,
 # passes its values in here, and runs this with docker/servers/<name>/ as the project
-# folder, so the relative paths below (./server, ./backups) are that server's own.
+# folder, so the relative paths below (./data, ./backups) are that server's own.
 #
 # Per-server values (from server.conf, see docker/server.conf.example):
 #   SERVER_NAME     the folder name under docker/servers/ (also the backup file prefix)
 #   JAVA_IMAGE      itzg/minecraft-server image with the right Java, pinned by digest
-#   MC_VERSION      Minecraft version, JAR_FILE: the server jar inside server/
+#   MC_VERSION      Minecraft version, JAR_FILE: the server jar inside data/
 #   RAM_ALLOCATION  heap size; JVM_OPTS: extra Java flags (JAVA_ARGS in server.conf)
 #   SERVER_PORT     server-port from the server's own server.properties
 #   GAME_PORT, RCON_PORT  ports on this PC (127.0.0.1 only)
@@ -37,7 +37,7 @@ services:
       - "127.0.0.1:${GAME_PORT:?}:${SERVER_PORT:?}"
       - "127.0.0.1:${RCON_PORT:?}:25575"
     volumes:
-      - ./server:/data
+      - ./data:/data
     stdin_open: true
     tty: true
 
@@ -68,7 +68,7 @@ services:
       EXCLUDES: "*.jar,cache,logs,*.tmp,backups,DistantHorizons.sqlite*"
       TZ: Europe/London
     volumes:
-      - ./server:/data:ro
+      - ./data:/data:ro
       # Only this container sees the backups; the server container can't touch them.
       - ./backups:/backups
       - ${DOCKER_DIR:?}/backup-hooks:/hooks:ro

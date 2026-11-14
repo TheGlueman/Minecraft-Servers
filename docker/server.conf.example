@@ -1,6 +1,6 @@
 # Settings for one Docker server: copy to docker/servers/<name>/server.conf and fill in.
 # The server's files (world, mods, jar, server.properties, ...) go in
-# docker/servers/<name>/server/; its backups are made in docker/servers/<name>/backups/.
+# docker/servers/<name>/data/; its backups are made in docker/servers/<name>/backups/.
 # Everything not set here is shared by all servers in docker/compose.yaml.
 # Like the run.sh servers' server.conf, this is trusted Bash that the scripts source.
 
@@ -13,7 +13,7 @@ NAME=example
 #   docker image inspect itzg/minecraft-server:java21 --format '{{index .RepoDigests 0}}'
 JAVA_IMAGE=itzg/minecraft-server:java21@sha256:<digest>
 MC_VERSION=1.21.1
-# The server jar inside server/ (the image runs it; it installs nothing).
+# The server jar inside data/ (the image runs it; it installs nothing).
 JAR_FILE=server.jar
 RAM_ALLOCATION=6G
 # Optional extra Java flags, as an array (no spaces inside a flag: they reach Java as one

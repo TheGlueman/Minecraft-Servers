@@ -19,7 +19,7 @@
 #                                         (scripts/sync-mods.py; only while stopped)
 #
 # Each server is a folder docker/servers/<name>/ with its settings in server.conf (see
-# docker/server.conf.example), its files in server/ and its backups in backups/. All
+# docker/server.conf.example), its files in data/ and its backups in backups/. All
 # servers share docker/compose.yaml and the tooling next to it; nothing else is per server.
 #
 # Backups all go in the server's backups/ folder, named by kind; the newest KEEP_BACKUPS
@@ -83,7 +83,7 @@ fi
 SERVER_NAME=$NAME
 JVM_OPTS="${JAVA_ARGS[*]}"
 # The port the server listens on inside the container: its own server.properties decides.
-SERVER_PORT=$(sed -n 's/^server-port=\([0-9][0-9]*\).*/\1/p' "$server_folder/server/server.properties" 2>/dev/null | tail -n 1)
+SERVER_PORT=$(sed -n 's/^server-port=\([0-9][0-9]*\).*/\1/p' "$server_folder/data/server.properties" 2>/dev/null | tail -n 1)
 SERVER_PORT=${SERVER_PORT:-25565}
 # The shared tooling (backup hooks), which compose.yaml mounts from here.
 DOCKER_DIR="$repo_root/docker"
@@ -100,8 +100,8 @@ if [[ ! -f "$rcon_env" ]]; then
     printf 'Made an RCON password for %s in %s\n' "$NAME" "$rcon_env"
 fi
 
-if [[ ! -d "$server_folder/server" ]]; then
-    printf 'Error: %s has no server/ folder with the server files in it.\n' "$server_folder" >&2
+if [[ ! -d "$server_folder/data" ]]; then
+    printf 'Error: %s has no data/ folder with the server files in it.\n' "$server_folder" >&2
     exit 1
 fi
 # Make the backup folder ourselves: if Docker had to create it for the mount it would be

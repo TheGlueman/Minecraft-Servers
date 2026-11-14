@@ -80,7 +80,7 @@ Each server is just a folder, `docker/servers/<name>/`, holding:
 
 - `server.conf`: its settings: Java image, Minecraft version, jar, RAM, Java flags,
   ports and mod sync settings (in git)
-- `server/`: its files: world, mods, configs, jar and `server.properties` (only the
+- `data/`: its files: world, mods, configs, jar and `server.properties` (only the
   small hand-edited files are in git)
 - `backups/`: its world backups, and the mods/config copies `sync` makes before
   changing anything (not in git). Only the backup container can see this folder.
@@ -92,7 +92,7 @@ in `~/.config/minecraft-servers/<name>-rcon.env`.
 
 To add a server: copy `docker/server.conf.example` to
 `docker/servers/<name>/server.conf` and fill it in, put the server's files in
-`docker/servers/<name>/server/`, then `./docker.sh <name> up`.
+`docker/servers/<name>/data/`, then `./docker.sh <name> up`.
 
 ## Layout
 
@@ -106,7 +106,7 @@ Minecraft-Servers/
 │   ├── server.conf.example  template for a new Docker server's settings
 │   ├── backup-hooks/     chat announcements and pruning for Docker backups
 │   ├── console.py        the live log + command console behind docker.sh up/attach
-│   └── servers/          one folder per server: server.conf, server/, backups/
+│   └── servers/          one folder per server: server.conf, data/, backups/
 │       ├── emily-server/
 │       └── hbm-server/
 └── legacy/               the original servers and the run.sh scripts that run them

@@ -72,11 +72,11 @@ def read_server_conf(conf: Path) -> Server | None:
         return None
     if not name:
         return None
-    # Docker servers (docker/servers/<name>/server.conf) keep their files in server/ and
+    # Docker servers (docker/servers/<name>/server.conf) keep their files in data/ and
     # their backups in backups/ next to it; run.sh servers keep server.conf, and a
     # backups/ folder, inside the server folder itself.
     if conf.parent.parent == REPO_ROOT / "docker" / "servers":
-        root, backup_dir = conf.parent / "server", conf.parent / "backups"
+        root, backup_dir = conf.parent / "data", conf.parent / "backups"
     else:
         root, backup_dir = conf.parent, conf.parent / "backups"
     return Server(

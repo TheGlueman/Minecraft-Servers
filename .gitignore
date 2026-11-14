@@ -9,15 +9,15 @@
 !/tests/
 # The end-to-end test's throwaway server copy.
 /tests/work/
-# Each Docker server's files live in docker/servers/<name>/server/. Track the same small
+# Each Docker server's files live in docker/servers/<name>/data/. Track the same small
 # files as for the run.sh servers, except server.properties: Docker writes the RCON
 # password into it. Its backups (docker/servers/<name>/backups/) are never tracked.
-/docker/servers/*/server/*
-!/docker/servers/*/server/config/
-!/docker/servers/*/server/mods.txt
-!/docker/servers/*/server/eula.txt
-!/docker/servers/*/server/whitelist.json
-!/docker/servers/*/server/ops.json
+/docker/servers/*/data/*
+!/docker/servers/*/data/config/
+!/docker/servers/*/data/mods.txt
+!/docker/servers/*/data/eula.txt
+!/docker/servers/*/data/whitelist.json
+!/docker/servers/*/data/ops.json
 /docker/servers/*/backups/
 
 # Never commit generated files anywhere, even inside allowed folders
